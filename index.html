@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>中古品在庫管理｜アクアリンク</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0B2545">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+  :root{
+    --navy:#0B2545; --deep:#13315C; --blue:#1C7293; --light:#8DA9C4;
+    --accent:#F4A261; --teal:#2A9D8F; --warn:#E76F51; --bg:#F1F5F9; --ink:#0B2545;
+    --card:#fff; --line:#E2E8F0; --muted:#5C7089;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:"Yu Gothic UI","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5;}
+  .wrap{max-width:520px; margin:0 auto; min-height:100vh; padding-bottom:92px;}
+  input,select,button,textarea{font-family:inherit;}
+
+  header{position:sticky; top:0; z-index:20;
+    background:linear-gradient(135deg,var(--navy),var(--blue)); color:#fff;
+    padding:15px 16px 13px; box-shadow:0 2px 14px rgba(11,37,69,.22);}
+  .brand{display:flex; align-items:center; gap:9px;}
+  .brand .dot{width:26px; height:26px; border-radius:7px;
+    background:linear-gradient(135deg,var(--accent),var(--teal)); display:grid; place-items:center; font-size:15px;}
+  .brand h1{font-size:17px; margin:0; font-weight:800; letter-spacing:.02em;}
+  .brand small{display:block; font-size:10px; color:#B9CBDE; font-weight:500; letter-spacing:.08em;}
+  .searchbar{margin-top:12px; display:flex; gap:8px; align-items:center;
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); border-radius:12px; padding:9px 12px;}
+  .searchbar input{flex:1; background:none; border:none; outline:none; color:#fff; font-size:15px;}
+  .searchbar input::placeholder{color:#C4D3E4;}
+  .banner-bar{display:none; font-size:12px; font-weight:700; padding:8px 16px; text-align:center;}
+  .banner-bar.info{display:block; background:#E3F0F5; color:#1C7293;}
+  .banner-bar.warn{display:block; background:#FFF7ED; color:#9a6b2b;}
+
+  .filters{display:flex; gap:7px; overflow-x:auto; padding:11px 16px 3px;}
+  .filters::-webkit-scrollbar{display:none;}
+  .chip{flex:none; border:1.5px solid var(--line); background:#fff; color:var(--muted);
+    font-size:12.5px; font-weight:700; padding:6px 13px; border-radius:999px; cursor:pointer; white-space:nowrap;}
+  .chip.on{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .meta{padding:5px 18px 2px; font-size:12px; color:var(--muted);} .meta b{color:var(--deep);}
+
+  .groups{padding:6px 14px 0; display:flex; flex-direction:column; gap:10px;}
+  .genre{background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden;}
+  .ghead{display:flex; align-items:center; gap:11px; padding:13px 14px; cursor:pointer;}
+  .gicon{width:38px; height:38px; border-radius:10px; display:grid; place-items:center; font-size:19px; flex:none;
+    background:linear-gradient(135deg,var(--light),var(--blue)); color:#fff;}
+  .gname{font-size:15px; font-weight:800; flex:1;}
+  .gcount{font-size:12px; color:var(--muted); font-weight:700; text-align:right;}
+  .gcount b{color:var(--teal);}
+  .caret{color:var(--light); font-size:13px; transition:.2s; margin-left:6px;}
+  .genre.open .caret{transform:rotate(90deg);}
+  .gbody{display:none; padding:0 10px 10px; flex-direction:column; gap:9px;}
+  .genre.open .gbody{display:flex;}
+  .grouphead{font-size:11px; font-weight:800; color:var(--light); letter-spacing:.1em; padding:10px 6px 2px;}
+
+  .card{display:flex; gap:11px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px; cursor:pointer;}
+  .card:active{transform:scale(.99);}
+  .thumb{width:66px; height:66px; border-radius:9px; flex:none;
+    background:linear-gradient(135deg,var(--light),var(--blue)); display:grid; place-items:center; color:#fff; font-size:22px; overflow:hidden;}
+  .thumb img{width:100%; height:100%; object-fit:cover;}
+  .card .b{flex:1; min-width:0;}
+  .idrow{display:flex; align-items:center; gap:7px;}
+  .mgno{font-size:10.5px; font-weight:800; color:#fff; background:var(--navy); padding:2px 7px; border-radius:6px;}
+  .pname{font-size:14px; font-weight:700; margin:2px 0 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sub{font-size:11.5px; color:var(--muted); display:flex; flex-wrap:wrap; gap:3px 9px;}
+  .foot{display:flex; align-items:center; justify-content:space-between; margin-top:5px;}
+  .price{font-size:14.5px; font-weight:800; color:var(--deep);} .price small{font-size:10.5px; color:var(--muted); font-weight:600;}
+  .pill{font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:999px;}
+  .s-未提案{background:#EAF6F2; color:#1f8a6b;} .s-提案中{background:#FDEFE2; color:#c9662b;} .s-販売済み{background:#EEF0F3; color:#8892a0;}
+  .rank{font-weight:800;} .rank.A{color:var(--teal);} .rank.B{color:var(--accent);} .rank.C{color:var(--warn);}
+
+  .fab{position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:15; max-width:520px; width:calc(100% - 28px);}
+  .fab button{width:100%; border:none; border-radius:14px; padding:15px; font-size:15px; font-weight:800; cursor:pointer;
+    background:linear-gradient(135deg,var(--accent),#E8894A); color:#3a2410; box-shadow:0 5px 16px rgba(244,162,97,.42);
+    display:flex; align-items:center; justify-content:center; gap:8px;}
+
+  .sheet{position:fixed; inset:0; z-index:40; background:rgba(11,37,69,.5); display:none; align-items:flex-end; justify-content:center;}
+  .sheet.show{display:flex;}
+  .panel{background:#fff; width:100%; max-width:520px; max-height:94vh; overflow-y:auto; border-radius:20px 20px 0 0; animation:up .22s ease;}
+  @keyframes up{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .phead{position:sticky; top:0; background:linear-gradient(135deg,var(--navy),var(--blue)); color:#fff; padding:15px 16px; display:flex; justify-content:space-between; align-items:flex-start; z-index:2;}
+  .phead .mgno{font-size:11px;} .phead h2{font-size:16.5px; margin:6px 0 0; font-weight:800;}
+  .phead .x{background:rgba(255,255,255,.18); border:none; color:#fff; width:32px; height:32px; border-radius:9px; font-size:18px; cursor:pointer; flex:none;}
+  .pbody{padding:16px;}
+
+  .photo{position:relative; width:100%; height:190px; border-radius:14px; margin-bottom:14px;
+    background:linear-gradient(135deg,var(--light),var(--blue)); display:grid; place-items:center; color:#fff; font-size:40px; overflow:hidden;}
+  .photo img{width:100%; height:100%; object-fit:cover;}
+  .photobtn{position:absolute; right:10px; bottom:10px; background:rgba(11,37,69,.72); color:#fff; border:none;
+    padding:8px 13px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer;}
+
+  .banner{border-radius:12px; padding:12px 14px; font-size:13px; font-weight:700; margin-bottom:10px;}
+  .banner.prop{background:#FDEFE2; color:#b8551f;} .banner.sold{background:#EEF0F3; color:#6b7482;}
+  .banner .who{font-size:15px; font-weight:800; display:block; margin-top:2px;}
+  .actions{display:flex; gap:8px; flex-wrap:wrap;}
+  .btn{border:none; border-radius:11px; padding:12px 16px; font-size:14px; font-weight:800; cursor:pointer; flex:1; min-width:44%;}
+  .btn.pri{background:var(--teal); color:#fff;} .btn.sec{background:#fff; color:var(--deep); border:1.5px solid var(--line);}
+  .btn.warn{background:#fff; color:var(--warn); border:1.5px solid #F3C9BE;}
+
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-top:14px;}
+  .cell{background:#fff; padding:10px 12px;} .cell.full{grid-column:1/3;}
+  .cell .lb{font-size:10px; color:var(--muted); font-weight:700; letter-spacing:.04em;}
+  .cell .vl{font-size:13.5px; font-weight:600; margin-top:2px;}
+
+  .field{margin-bottom:13px;} .field label{display:block; font-size:12px; font-weight:700; color:var(--deep); margin-bottom:5px;}
+  .field input,.field select,.field textarea{width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:11px; font-size:15px; outline:none; background:#fff;}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);}
+  .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .dropzone{border:2px dashed var(--light); border-radius:12px; padding:20px; text-align:center; color:var(--muted); font-size:13px; cursor:pointer; background:var(--bg);}
+  .dropzone img{max-width:100%; max-height:180px; border-radius:10px;}
+  .submit{width:100%; border:none; border-radius:12px; padding:15px; font-size:15px; font-weight:800; background:var(--teal); color:#fff; cursor:pointer; margin-top:4px;}
+
+  .addlead{font-size:13px; color:var(--muted); margin:0 0 14px; font-weight:600;}
+  .typegrid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .typecard{border:1.5px solid var(--line); background:#fff; border-radius:16px; padding:22px 12px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:7px; text-align:center;}
+  .typecard .em{font-size:36px;} .typecard b{font-size:15px; color:var(--deep);} .typecard small{font-size:10.5px; color:var(--muted); line-height:1.45; font-weight:600;}
+  .typecard:active{transform:scale(.98); border-color:var(--blue);}
+  .backbtn{background:none; border:none; color:var(--blue); font-size:13px; font-weight:800; cursor:pointer; padding:0 0 12px;}
+
+  .toast{position:fixed; bottom:92px; left:50%; transform:translateX(-50%); z-index:60; background:var(--navy); color:#fff;
+    padding:12px 18px; border-radius:12px; font-size:13px; font-weight:700; opacity:0; transition:.25s; pointer-events:none; max-width:88%; text-align:center;}
+  .toast.show{opacity:1;}
+  .empty{text-align:center; color:var(--muted); padding:48px 24px;} .empty .big{font-size:32px; margin-bottom:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="dot">🐠</div>
+      <div><h1>中古品在庫管理</h1><small>ACQUALINK USED STOCK</small></div></div>
+    <div class="searchbar"><span>🔍</span>
+      <input id="q" placeholder="品名・管理番号・サイズで検索（例: 90 / フルセット）" autocomplete="off"></div>
+  </header>
+  <div id="banner" class="banner-bar"></div>
+  <div class="filters" id="fStatus"></div>
+  <div class="meta"><b id="count">0</b> 件 ／ ジャンルをタップで開閉</div>
+  <div class="groups" id="groups"></div>
+  <div class="empty" id="empty" style="display:none"><div class="big">🔎</div>該当する在庫がありません</div>
+</div>
+
+<div class="fab"><button onclick="openAdd()">＋ 設置部：在庫を追加する</button></div>
+
+<div class="sheet" id="dSheet" onclick="if(event.target===this)closeS('dSheet')">
+  <div class="panel">
+    <div class="phead"><div><span class="mgno" id="dMg"></span><h2 id="dName"></h2></div>
+      <button class="x" onclick="closeS('dSheet')">✕</button></div>
+    <div class="pbody" id="dBody"></div>
+  </div>
+</div>
+
+<div class="sheet" id="aSheet" onclick="if(event.target===this)closeS('aSheet')">
+  <div class="panel">
+    <div class="phead"><div><span class="mgno">設置部</span><h2 id="aTitle">在庫を追加</h2></div>
+      <button class="x" onclick="closeS('aSheet')">✕</button></div>
+    <div class="pbody" id="aBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================================================================
+   ① ここに GAS ウェブアプリのURLを貼ると「保存・共有される本番」になります。
+      空のままだと端末内だけのデモモードで動きます。
+   =================================================================== */
+const API = "";
+
+const TANK_G=["水槽フルセット","水槽のみ","水槽台"];
+const GOODS_G=["フィルター関係","クーラー関係","照明関係","ポンプ・その他機材"];
+const GENRES=TANK_G.concat(GOODS_G);
+const GICON={"水槽フルセット":"🐠","水槽のみ":"🫙","水槽台":"🪵","フィルター関係":"⚙️","クーラー関係":"❄️","照明関係":"💡","ポンプ・その他機材":"🔧"};
+
+/* API未設定時に表示するデモデータ */
+const SAMPLE=[
+ {mg:"AQ-001",t:"水槽",g:"水槽フルセット",name:"60cm規格 淡水フルセット",w:600,d:300,h:360,std:"60cm",rank:"A",status:"未提案",price:35000,loc:"A-1",note:"すぐ提案可"},
+ {mg:"AQ-002",t:"水槽",g:"水槽のみ",name:"90cm OFオーバーフロー水槽",w:900,d:450,h:450,std:"90cm",rank:"B",status:"提案中",price:45000,loc:"A-3",note:"要清掃",propTo:"○○クリニック様",propUntil:"2026-08-15"},
+ {mg:"AQ-006",t:"商品",g:"フィルター関係",name:"エーハイム 2213 外部フィルター",rank:"B",status:"未提案",price:6000,loc:"D-1",damage:"",dirt:"ホースに軽い黄ばみ",remark:"動作確認済"},
+ {mg:"AQ-011",t:"商品",g:"クーラー関係",name:"ゼンスイ ZC-500α クーラー",rank:"B",status:"未提案",price:28000,loc:"D-4",damage:"",dirt:"本体に水垢",remark:"冷却良好"},
+];
+
+let DATA=[], fStatus="すべて", qStr="", openG={}, curPhoto=null, curMg=null;
+const $=id=>document.getElementById(id);
+
+["すべて","未提案","提案中","販売済み"].forEach(s=>{
+  const c=document.createElement("div"); c.className="chip"+(s==="すべて"?" on":""); c.textContent=s;
+  c.onclick=()=>{fStatus=s;[...$("fStatus").children].forEach(x=>x.classList.toggle("on",x.textContent===s));render();};
+  $("fStatus").appendChild(c);
+});
+$("q").addEventListener("input",e=>{qStr=e.target.value.trim();render();});
+
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+function sizeStr(it){return it.h?`${it.w}×${it.d}×${it.h}mm`:`${it.w}×${it.d}mm`;}
+function photoSrc(it){return it.photoUrl || (it.photo && String(it.photo).indexOf("data:")===0 ? it.photo : "");}
+function banner(msg,type){const b=$("banner"); b.textContent=msg||""; b.className="banner-bar"+(msg?(" "+type):"");}
+
+/* ---------- データ読み込み / API ---------- */
+async function loadData(){
+  if(!API){ DATA=SAMPLE.slice(); banner("デモモード（API未設定）：保存は端末内のみ。手順書に沿ってAPIを設定すると全員で共有・常に最新になります。","warn"); render(); return; }
+  banner("読み込み中…","info");
+  try{
+    const res=await fetch(API);
+    const j=await res.json();
+    DATA=(j&&j.items)?j.items:[]; banner("",""); render();
+  }catch(err){ DATA=SAMPLE.slice(); banner("サーバーに接続できませんでした。設定を確認してください（デモ表示中）。","warn"); render(); }
+}
+async function apiPost(payload){
+  const res=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
+  return await res.json();
+}
+function cleanItem(it){const o=Object.assign({},it); delete o.photoUrl; delete o.photoDataUrl; return o;}
+
+/* ---------- 描画 ---------- */
+function pass(it){
+  if(fStatus!=="すべて"&&it.status!==fStatus)return false;
+  if(qStr){const hay=(it.mg+" "+it.name+" "+it.g+" "+(it.std||"")+" "+(it.w||"")+" "+(it.d||"")+" "+(it.h||"")).toLowerCase();
+    if(!qStr.toLowerCase().split(/\s+/).every(t=>hay.includes(t)))return false;}
+  return true;
+}
+function render(){
+  const rows=DATA.filter(pass); $("count").textContent=rows.length;
+  const searching=qStr.length>0; let html="",shown=0,lastKind="";
+  GENRES.forEach(g=>{
+    const items=rows.filter(it=>it.g===g); if(!items.length)return; shown++;
+    const kind=TANK_G.includes(g)?"中古水槽":"中古商品";
+    if(kind!==lastKind){ html+=`<div class="grouphead">${kind}</div>`; lastKind=kind; }
+    const avail=items.filter(it=>it.status==="未提案").length;
+    const isOpen=searching||openG[g];
+    html+=`<div class="genre ${isOpen?"open":""}">
+      <div class="ghead" onclick="toggleG('${g}')">
+        <div class="gicon">${GICON[g]}</div><div class="gname">${g}</div>
+        <div class="gcount">${items.length}点<br><b>在庫 ${avail}</b></div><div class="caret">▶</div></div>
+      <div class="gbody">${items.map(cardHtml).join("")}</div></div>`;
+  });
+  $("groups").innerHTML=html; $("empty").style.display=shown?"none":"block";
+}
+function cardHtml(it){
+  const sizeSpan=it.t==="商品"?"":`<span>📐 ${sizeStr(it)}</span>`;
+  const ph=photoSrc(it);
+  return `<div class="card" onclick="detail('${it.mg}')">
+  <div class="thumb">${ph?`<img src="${ph}">`:GICON[it.g]}</div>
+  <div class="b"><div class="idrow"><span class="mgno">${it.mg}</span></div>
+    <div class="pname">${esc(it.name)}</div>
+    <div class="sub">${sizeSpan}<span>ランク <b class="rank ${it.rank}">${it.rank}</b></span><span>📍${esc(it.loc)}</span></div>
+    <div class="foot"><div class="price">¥${(it.price||0).toLocaleString()}<small> 想定</small></div>
+      <span class="pill s-${it.status}">${it.status}${it.status==="提案中"&&it.propTo?" ・"+shortWho(it.propTo):""}</span></div>
+  </div></div>`;
+}
+function shortWho(w){w=String(w);return w.length>8?w.slice(0,8)+"…":w;}
+function toggleG(g){openG[g]=!openG[g];render();}
+
+/* ---------- 詳細 ---------- */
+function detail(mg){
+  const it=DATA.find(x=>x.mg===mg); if(!it)return; curMg=mg;
+  $("dMg").textContent=it.mg; $("dName").textContent=it.name;
+  let s="";
+  if(it.status==="未提案"){
+    s=`<div class="actions"><button class="btn pri" onclick="askPropose()">営業：この在庫を提案する</button>
+      <button class="btn warn" onclick="setSold()">販売済みにする</button></div>`;
+  }else if(it.status==="提案中"){
+    s=`<div class="banner prop">🕑 提案中<span class="who">${esc(it.propTo)||"—"}</span>期限：${fmt(it.propUntil)} まで</div>
+      <div class="actions"><button class="btn warn" onclick="unpropose()">提案を取り消す</button>
+      <button class="btn pri" onclick="setSold()">成約（販売済みに）</button></div>`;
+  }else{
+    s=`<div class="banner sold">✅ 販売済み</div>
+      <div class="actions"><button class="btn sec" onclick="revert()">在庫に戻す</button></div>`;
+  }
+  let rows,extra;
+  if(it.t==="商品"){
+    rows=[["ジャンル",it.g],["状態ランク",it.rank],["想定価格","¥"+(it.price||0).toLocaleString()],["保管場所",it.loc]];
+    extra=`<div class="cell full"><div class="lb">破損している箇所</div><div class="vl" style="font-weight:500">${esc(it.damage)||"—"}</div></div>
+      <div class="cell full"><div class="lb">汚れ・使用感</div><div class="vl" style="font-weight:500">${esc(it.dirt)||"—"}</div></div>
+      <div class="cell full"><div class="lb">備考</div><div class="vl" style="font-weight:500">${esc(it.remark)||"—"}</div></div>`;
+  }else{
+    rows=[["ジャンル",it.g],["規格",it.std],["サイズ",sizeStr(it)],["状態ランク",it.rank],["想定価格","¥"+(it.price||0).toLocaleString()],["保管場所",it.loc]];
+    extra=`<div class="cell full"><div class="lb">状態メモ</div><div class="vl" style="font-weight:500">${esc(it.note)||"—"}</div></div>`;
+  }
+  const ph=photoSrc(it);
+  $("dBody").innerHTML=`
+    <div class="photo">${ph?`<img src="${ph}">`:GICON[it.g]}
+      <button class="photobtn" onclick="document.getElementById('dpick').click()">📷 写真を${ph?"変更":"追加"}</button></div>
+    <input type="file" id="dpick" accept="image/*" capture="environment" style="display:none" onchange="setPhoto(this)">
+    ${s}
+    <button class="btn sec" style="width:100%;margin-top:2px" onclick="editMode()">✎ 内容を編集する</button>
+    <div class="grid">${rows.map(([l,v])=>`<div class="cell"><div class="lb">${l}</div><div class="vl">${esc(v)||"—"}</div></div>`).join("")}${extra}</div>`;
+  showS("dSheet");
+}
+
+/* ---------- ステータス操作（営業） ---------- */
+async function pushStatus(it){
+  if(!API)return;
+  try{ const j=await apiPost({action:"setStatus",mg:it.mg,status:it.status,propTo:it.propTo||"",propUntil:it.propUntil||""});
+    if(!(j&&j.ok)) toast("保存に失敗しました"); }
+  catch(e){ toast("通信エラー"); }
+}
+function askPropose(){
+  const to=prompt("提案先（例：○○様案件／△△クリニック様）"); if(to===null)return;
+  const until=prompt("提案期限（例：2026-07-20）","2026-"); if(until===null)return;
+  const it=DATA.find(x=>x.mg===curMg); it.status="提案中"; it.propTo=to||"（未記入）"; it.propUntil=until||"";
+  detail(curMg); render(); toast("提案中にしました"); pushStatus(it);
+}
+function unpropose(){const it=DATA.find(x=>x.mg===curMg); it.status="未提案"; it.propTo=""; it.propUntil=""; detail(curMg); render(); toast("未提案に戻しました"); pushStatus(it);}
+function setSold(){const it=DATA.find(x=>x.mg===curMg); it.status="販売済み"; detail(curMg); render(); toast("販売済みにしました"); pushStatus(it);}
+function revert(){const it=DATA.find(x=>x.mg===curMg); it.status="未提案"; it.propTo=""; it.propUntil=""; detail(curMg); render(); toast("在庫に戻しました"); pushStatus(it);}
+
+/* ---------- 写真 ---------- */
+function readResized(file, cb){
+  const r=new FileReader();
+  r.onload=()=>{const img=new Image();
+    img.onload=()=>{const max=1280; let w=img.width,h=img.height;
+      if(w>h&&w>max){h=Math.round(h*max/w);w=max;} else if(h>=w&&h>max){w=Math.round(w*max/h);h=max;}
+      const c=document.createElement("canvas");c.width=w;c.height=h;
+      c.getContext("2d").drawImage(img,0,0,w,h); cb(c.toDataURL("image/jpeg",0.82));};
+    img.src=r.result;};
+  r.readAsDataURL(file);
+}
+function setPhoto(inp){const f=inp.files[0]; if(!f)return;
+  readResized(f, async(durl)=>{
+    const it=DATA.find(x=>x.mg===curMg);
+    if(!API){ it.photo=durl; detail(curMg); render(); toast("写真を追加（デモ）"); return; }
+    toast("写真を保存中…");
+    try{ const j=await apiPost({action:"save",item:Object.assign(cleanItem(it),{photoDataUrl:durl})});
+      if(j&&j.ok){ Object.assign(it,j.item); detail(curMg); render(); toast("写真をアップロードしました"); }
+      else toast("保存に失敗しました"); }
+    catch(e){ toast("通信エラー"); }
+  });
+}
+
+/* ---------- 編集 ---------- */
+function editMode(){
+  const it=DATA.find(x=>x.mg===curMg); if(!it)return;
+  const gs=it.t==="商品"?GOODS_G:TANK_G;
+  const gopt=gs.map(g=>`<option ${g===it.g?"selected":""}>${g}</option>`).join("");
+  const rks=["A","B","C"].map(x=>`<option ${x===it.rank?"selected":""}>${x}</option>`).join("");
+  let body;
+  if(it.t==="商品"){
+    body=`
+    <div class="field"><label>ジャンル</label><select id="eG">${gopt}</select></div>
+    <div class="field"><label>商品名</label><input id="eName" value="${esc(it.name)}"></div>
+    <div class="field"><label>状態ランク</label><select id="eRank">${rks}</select></div>
+    <div class="field"><label>破損している箇所</label><textarea id="eDmg" rows="2">${esc(it.damage)}</textarea></div>
+    <div class="field"><label>汚れ・使用感</label><textarea id="eDirt" rows="2">${esc(it.dirt)}</textarea></div>
+    <div class="field"><label>備考</label><textarea id="eRemark" rows="2">${esc(it.remark)}</textarea></div>
+    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="ePrice" type="number" value="${it.price||''}"></div>
+      <div class="field"><label>保管場所</label><input id="eLoc" value="${esc(it.loc)}"></div></div>`;
+  }else{
+    const stds=["60cm","90cm","120cm","150cm","その他"].map(x=>`<option ${x===it.std?"selected":""}>${x}</option>`).join("");
+    body=`
+    <div class="field"><label>ジャンル</label><select id="eG">${gopt}</select></div>
+    <div class="field"><label>品名・呼称</label><input id="eName" value="${esc(it.name)}"></div>
+    <div class="field"><label>サイズ W × D × H（mm）</label>
+      <div class="row3"><input id="eW" type="number" value="${it.w||''}"><input id="eD" type="number" value="${it.d||''}"><input id="eH" type="number" value="${it.h||''}"></div></div>
+    <div class="row2"><div class="field"><label>規格</label><select id="eStd">${stds}</select></div>
+      <div class="field"><label>状態ランク</label><select id="eRank">${rks}</select></div></div>
+    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="ePrice" type="number" value="${it.price||''}"></div>
+      <div class="field"><label>保管場所</label><input id="eLoc" value="${esc(it.loc)}"></div></div>
+    <div class="field"><label>状態メモ</label><textarea id="eNote" rows="2">${esc(it.note)}</textarea></div>`;
+  }
+  $("dBody").innerHTML=`
+    ${body}
+    <div class="actions"><button class="btn sec" onclick="detail(curMg)">キャンセル</button>
+      <button class="btn pri" onclick="saveEdit()">保存する</button></div>`;
+}
+async function saveEdit(){
+  const it=DATA.find(x=>x.mg===curMg); if(!it)return;
+  it.g=$("eG").value; it.name=$("eName").value.trim()||it.name; it.rank=$("eRank").value;
+  it.price=+$("ePrice").value||0; it.loc=$("eLoc").value.trim()||"—";
+  if(it.t==="商品"){ it.damage=$("eDmg").value.trim(); it.dirt=$("eDirt").value.trim(); it.remark=$("eRemark").value.trim(); }
+  else{ it.w=+$("eW").value||0; it.d=+$("eD").value||0; it.h=+$("eH").value||0; it.std=$("eStd").value; it.note=$("eNote").value.trim(); }
+  detail(curMg); render();
+  if(!API){ toast("更新（デモ）"); return; }
+  toast("保存中…");
+  try{ const j=await apiPost({action:"save",item:cleanItem(it)}); toast(j&&j.ok?"更新しました":"保存に失敗しました"); }
+  catch(e){ toast("通信エラー"); }
+}
+
+/* ---------- 追加（設置部） ---------- */
+function openAdd(){curPhoto=null; renderChooser(); showS("aSheet");}
+function renderChooser(){
+  $("aTitle").textContent="在庫を追加";
+  $("aBody").innerHTML=`
+    <p class="addlead">追加する種類を選んでください</p>
+    <div class="typegrid">
+      <button class="typecard" onclick="addForm('水槽')"><span class="em">🐠</span><b>中古水槽</b>
+        <small>フルセット／水槽のみ／台<br>サイズ・状態を登録</small></button>
+      <button class="typecard" onclick="addForm('商品')"><span class="em">⚙️</span><b>中古商品</b>
+        <small>フィルター・クーラー・照明・ポンプ等<br>ランク・破損・汚れ・備考を登録</small></button>
+    </div>`;
+}
+function photoField(){return `<div class="field"><label>写真（スマホはカメラ起動）</label>
+    <div class="dropzone" id="drop" onclick="document.getElementById('pick').click()">📷 タップして写真を撮影／選択</div>
+    <input type="file" id="pick" accept="image/*" capture="environment" style="display:none" onchange="prev(this)"></div>`;}
+function addForm(t){
+  curPhoto=null;
+  const gs=t==="水槽"?TANK_G:GOODS_G;
+  const gopt=gs.map(g=>`<option>${g}</option>`).join("");
+  $("aTitle").textContent=(t==="水槽"?"中古水槽を追加":"中古商品を追加");
+  let fields;
+  if(t==="水槽"){
+    fields=`
+    <div class="field"><label>ジャンル</label><select id="fGenre">${gopt}</select></div>
+    <div class="field"><label>品名・呼称</label><input id="fName" placeholder="例: 90cm規格 淡水フルセット"></div>
+    <div class="field"><label>サイズ W × D × H（mm）</label><div class="row3"><input id="fW" type="number" placeholder="W"><input id="fD" type="number" placeholder="D"><input id="fH" type="number" placeholder="H"></div></div>
+    <div class="row2"><div class="field"><label>規格</label><select id="fStd"><option>60cm</option><option>90cm</option><option>120cm</option><option>150cm</option><option selected>その他</option></select></div>
+      <div class="field"><label>状態ランク</label><select id="fRank"><option>A</option><option>B</option><option>C</option></select></div></div>
+    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="fPrice" type="number"></div><div class="field"><label>保管場所</label><input id="fLoc" placeholder="A-1"></div></div>
+    <div class="field"><label>状態メモ</label><textarea id="fNote" rows="2" placeholder="キズ・清掃要否など"></textarea></div>`;
+  }else{
+    fields=`
+    <div class="field"><label>ジャンル</label><select id="fGenre">${gopt}</select></div>
+    <div class="field"><label>商品名</label><input id="fName" placeholder="例: エーハイム 2213 外部フィルター"></div>
+    <div class="field"><label>状態ランク</label><select id="fRank"><option>A</option><option>B</option><option>C</option></select></div>
+    <div class="field"><label>破損している箇所（あれば）</label><textarea id="fDmg" rows="2" placeholder="例: 電源コードの被覆に傷／フタのツメが1本欠け"></textarea></div>
+    <div class="field"><label>汚れ・使用感（あれば）</label><textarea id="fDirt" rows="2" placeholder="例: 本体に水垢／全体的にヤケあり"></textarea></div>
+    <div class="field"><label>備考（自由記入）</label><textarea id="fRemark" rows="2" placeholder="動作確認の有無・付属品など"></textarea></div>
+    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="fPrice" type="number"></div><div class="field"><label>保管場所</label><input id="fLoc" placeholder="D-1"></div></div>`;
+  }
+  $("aBody").innerHTML=`
+    <button class="backbtn" onclick="renderChooser()">← 種類の選択に戻る</button>
+    ${photoField()}${fields}
+    <button class="submit" onclick="addItem('${t}')">この内容で登録する</button>`;
+}
+function prev(inp){const f=inp.files[0]; if(!f)return; readResized(f,(durl)=>{curPhoto=durl; $("drop").innerHTML=`<img src="${durl}">`;});}
+function nextMgLocal(){let mx=0; DATA.forEach(it=>{const n=parseInt((String(it.mg).match(/\d+/)||[0])[0]); if(n>mx)mx=n;}); return "AQ-"+String(mx+1).padStart(3,"0");}
+async function addItem(t){
+  if(!$("fName").value.trim()){toast("品名を入力してください");return;}
+  const base={mg:"",t:t,g:$("fGenre").value,name:$("fName").value.trim(),rank:$("fRank").value,
+    status:"未提案",price:+$("fPrice").value||0,loc:$("fLoc").value.trim()||"—"};
+  let item;
+  if(t==="水槽") item=Object.assign(base,{w:+$("fW").value||0,d:+$("fD").value||0,h:+$("fH").value||0,std:$("fStd").value,note:$("fNote").value.trim()});
+  else item=Object.assign(base,{damage:$("fDmg").value.trim(),dirt:$("fDirt").value.trim(),remark:$("fRemark").value.trim()});
+  if(curPhoto) item.photoDataUrl=curPhoto;
+  closeS("aSheet");
+  if(!API){ item.mg=nextMgLocal(); if(curPhoto){item.photo=curPhoto;} DATA.unshift(item); openG[item.g]=true; render(); toast(item.mg+" を登録（デモ）"); return; }
+  toast("保存中…");
+  try{
+    const j=await apiPost({action:"save",item:item});
+    if(j&&j.ok){ DATA.unshift(j.item); openG[j.item.g]=true; render(); toast(j.item.mg+" を登録しました"); }
+    else toast("保存に失敗しました");
+  }catch(e){ toast("通信エラー"); }
+}
+
+function fmt(s){if(!s)return"—"; const p=String(s).split("-"); return p.length===3?`${+p[1]}/${+p[2]}`:s;}
+function showS(id){$(id).classList.add("show"); document.body.style.overflow="hidden";}
+function closeS(id){$(id).classList.remove("show"); document.body.style.overflow="";}
+let tT; function toast(m){const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(tT); tT=setTimeout(()=>t.classList.remove("show"),2600);}
+
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("./sw.js").catch(()=>{}); }
+loadData();
+</script>
+</body>
+</html>
