@@ -282,7 +282,7 @@ function detail(mg){
   $("dBody").innerHTML=`
     <div class="photo">${ph?`<img src="${ph}">`:GICON[it.g]}
       <button class="photobtn" onclick="document.getElementById('dpick').click()">📷 写真を${ph?"変更":"追加"}</button></div>
-    <input type="file" id="dpick" accept="image/*" capture="environment" style="display:none" onchange="setPhoto(this)">
+    <input type="file" id="dpick" accept="image/*" style="display:none" onchange="setPhoto(this)">
     ${s}
     <button class="btn sec" style="width:100%;margin-top:2px" onclick="editMode()">✎ 内容を編集する</button>
     <div class="grid">${rows.map(([l,v])=>`<div class="cell"><div class="lb">${l}</div><div class="vl">${esc(v)||"—"}</div></div>`).join("")}${extra}</div>`;
@@ -390,9 +390,9 @@ function renderChooser(){
         <small>フィルター・クーラー・照明・ポンプ等<br>ランク・破損・汚れ・備考を登録</small></button>
     </div>`;
 }
-function photoField(){return `<div class="field"><label>写真（スマホはカメラ起動）</label>
+function photoField(){return `<div class="field"><label>写真（撮影／ライブラリから選択）</label>
     <div class="dropzone" id="drop" onclick="document.getElementById('pick').click()">📷 タップして写真を撮影／選択</div>
-    <input type="file" id="pick" accept="image/*" capture="environment" style="display:none" onchange="prev(this)"></div>`;}
+    <input type="file" id="pick" accept="image/*" style="display:none" onchange="prev(this)"></div>`;}
 function addForm(t){
   curPhoto=null;
   const gs=t==="水槽"?TANK_G:GOODS_G;
