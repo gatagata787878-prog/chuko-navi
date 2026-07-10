@@ -140,13 +140,32 @@
   .previewgrid .pv img{width:100%; height:100%; object-fit:cover;}
   .previewgrid .pv .rm{position:absolute; top:2px; right:2px; width:20px; height:20px; border:none; border-radius:50%;
     background:rgba(11,37,69,.8); color:#fff; font-size:11px; line-height:1; cursor:pointer;}
+
+  .lock{position:fixed; inset:0; z-index:100; background:linear-gradient(160deg,var(--navy),var(--blue)); display:none; align-items:center; justify-content:center; padding:20px;}
+  .lock.show{display:flex;}
+  .lockcard{width:300px; max-width:90%; text-align:center; color:#fff;}
+  .lockicon{font-size:34px;}
+  .locktitle{font-size:18px; font-weight:800; margin-top:6px;}
+  .locksub{font-size:12.5px; color:#C4D3E4; margin:4px 0 16px;}
+  .locksub.err{color:#ffd7cc;}
+  .dots{display:flex; gap:11px; justify-content:center; min-height:15px; margin-bottom:18px;}
+  .dots span{width:13px; height:13px; border-radius:50%; background:#fff;}
+  .biobtn{width:100%; margin-bottom:14px; border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.12); color:#fff; padding:12px; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer;}
+  .keypad{display:grid; grid-template-columns:repeat(3,1fr); gap:11px;}
+  .keypad button{height:58px; border:none; border-radius:14px; background:rgba(255,255,255,.14); color:#fff; font-size:22px; font-weight:700; cursor:pointer;}
+  .keypad button:active{background:rgba(255,255,255,.3);}
+  .keypad button.act{background:var(--accent); color:#3a2410;}
+  .remember{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:16px; font-size:12.5px; color:#C4D3E4;}
+  .shake{animation:shk .4s;}
+  @keyframes shk{0%,100%{transform:translateX(0);}20%,60%{transform:translateX(-8px);}40%,80%{transform:translateX(8px);}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="brand"><div class="dot">🐠</div>
-      <div><h1>中古品在庫管理</h1><small>ACQUALINK USED STOCK</small></div></div>
+      <div style="flex:1"><h1>中古品在庫管理</h1><small>ACQUALINK USED STOCK</small></div>
+      <button id="lockBtn" onclick="logout()" style="display:none;margin-left:auto;background:rgba(255,255,255,.16);border:none;color:#fff;width:34px;height:34px;border-radius:10px;font-size:15px;cursor:pointer">🔒</button></div>
     <div class="searchbar"><span>🔍</span>
       <input id="q" placeholder="品名・管理番号・サイズで検索（例: 90 / フルセット）" autocomplete="off"></div>
   </header>
@@ -175,6 +194,17 @@
   </div>
 </div>
 
+<div class="lock" id="lock">
+  <div class="lockcard" id="lockcard">
+    <div class="lockicon">🔒</div>
+    <div class="locktitle">中古品在庫管理</div>
+    <div class="locksub" id="locksub">PINを入力してください</div>
+    <div class="dots" id="dots"></div>
+    <button class="biobtn" id="biobtn" style="display:none" onclick="doBioUnlock()">😊 Face ID / Touch IDで開く</button>
+    <div class="keypad" id="keypad"></div>
+    <label class="remember"><input type="checkbox" id="rememberChk" checked> この端末を記憶する</label>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -182,7 +212,7 @@
    ① ここに GAS ウェブアプリのURLを貼ると「保存・共有される本番」になります。
       空のままだと端末内だけのデモモードで動きます。
    =================================================================== */
-const API = "https://script.google.com/macros/s/AKfycbzfhxcpTZX_6PbLTJoD3kbJa173-Lnq0GAES6TtMYG828I0vCipoyTBYQMh6KZk5spp/exec";
+const API = "https://script.google.com/macros/s/AKfycbzWd6CsvqCT-uh3zKUsxn4kTDmumdb0FwGVmULI0u5K9jdE0-pBDPZkmZtdG2sM6e8/exec";
 
 const TANK_G=["水槽フルセット","水槽のみ","水槽台","上部カバー","ろ過槽"];
 const GOODS_G=["フィルター関係","クーラー関係","照明関係","ポンプ・その他機材"];
@@ -224,12 +254,13 @@ async function loadData(){
   if(!API){ DATA=SAMPLE.slice(); banner("デモモード（API未設定）：保存は端末内のみ。手順書に沿ってAPIを設定すると全員で共有・常に最新になります。","warn"); render(); return; }
   banner("読み込み中…","info");
   try{
-    const res=await fetch(API);
-    const j=await res.json();
+    const j=await apiPost({action:"list"});
+    if(j && j.error==="auth"){ banner("",""); showLock(); return; }
     DATA=(j&&j.items)?j.items:[]; banner("",""); render();
   }catch(err){ DATA=SAMPLE.slice(); banner("サーバーに接続できませんでした。設定を確認してください（デモ表示中）。","warn"); render(); }
 }
 async function apiPost(payload){
+  if(payload.pin===undefined) payload.pin=currentPin;
   const res=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
   return await res.json();
 }
@@ -507,7 +538,117 @@ function closeS(id){$(id).classList.remove("show"); document.body.style.overflow
 let tT; function toast(m){const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(tT); tT=setTimeout(()=>t.classList.remove("show"),2600);}
 
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("./sw.js").catch(()=>{}); }
-loadData();
+
+/* ================= ロック（PIN + Face ID/Touch ID） ================= */
+let pinBuf="", currentPin="";
+function buildKeypad(){
+  const kp=$("keypad"); if(!kp)return;
+  ["1","2","3","4","5","6","7","8","9","⌫","0","✓"].forEach(k=>{
+    const b=document.createElement("button"); b.textContent=k; if(k==="✓")b.className="act";
+    b.onclick=()=>tapKey(k); kp.appendChild(b);
+  });
+}
+function renderPin(){ const d=$("dots"); if(d) d.innerHTML=pinBuf.split("").map(()=>"<span></span>").join(""); }
+function tapKey(k){
+  if(k==="⌫"){ pinBuf=pinBuf.slice(0,-1); renderPin(); return; }
+  if(k==="✓"){ if(pinBuf.length>0) tryUnlock(pinBuf); return; }
+  if(pinBuf.length>=8) return;
+  pinBuf+=k; renderPin();
+}
+async function showLock(){
+  pinBuf=""; renderPin();
+  const sub=$("locksub"); if(sub){ sub.textContent="PINを入力してください"; sub.className="locksub"; }
+  $("biobtn").style.display=(localStorage.getItem("bioId") && await bioAvailable())?"block":"none";
+  $("lock").classList.add("show"); document.body.style.overflow="hidden";
+}
+function hideLock(){ $("lock").classList.remove("show"); document.body.style.overflow=""; }
+async function tryUnlock(pin){
+  currentPin=pin;
+  const j=await apiPost({action:"list", pin}).catch(()=>null);
+  if(j && j.error==="auth"){ pinFail(); return; }
+  if(j && j.items!==undefined){ DATA=j.items||[]; banner("",""); onUnlock(); render(); }
+  else { toast("通信エラー。もう一度お試しください"); }
+}
+function pinFail(){
+  currentPin=""; pinBuf=""; renderPin();
+  const c=$("lockcard"); if(c){ c.classList.add("shake"); setTimeout(()=>c.classList.remove("shake"),400); }
+  const sub=$("locksub"); if(sub){ sub.textContent="PINが違います"; sub.className="locksub err"; }
+  localStorage.removeItem("devicePin");
+}
+function onUnlock(){
+  hideLock();
+  if($("rememberChk") && $("rememberChk").checked){ localStorage.setItem("devicePin", currentPin); maybeOfferBio(); }
+  updateLockBtn();
+}
+function updateLockBtn(){ const b=$("lockBtn"); if(b) b.style.display=(API && currentPin)?"block":"none"; }
+function logout(){
+  if(!confirm("この端末のロック記憶を解除しますか？（次回からPIN入力が必要になります）")) return;
+  localStorage.removeItem("devicePin"); localStorage.removeItem("bioId");
+  currentPin=""; pinBuf=""; updateLockBtn(); showLock();
+}
+/* --- WebAuthn（Face ID / Touch ID） --- */
+async function bioAvailable(){
+  try{ return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
+  catch(e){ return false; }
+}
+function b64(buf){ return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); }
+function unb64(str){ return Uint8Array.from(atob(str), c=>c.charCodeAt(0)); }
+async function bioRegister(){
+  try{
+    const cred=await navigator.credentials.create({publicKey:{
+      challenge:crypto.getRandomValues(new Uint8Array(32)),
+      rp:{name:"中古品在庫管理"},
+      user:{id:crypto.getRandomValues(new Uint8Array(16)), name:"device", displayName:"device"},
+      pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:"platform", userVerification:"required"},
+      timeout:60000
+    }});
+    localStorage.setItem("bioId", b64(cred.rawId)); return true;
+  }catch(e){ return false; }
+}
+async function bioUnlock(){
+  try{
+    const id=localStorage.getItem("bioId"); if(!id) return false;
+    await navigator.credentials.get({publicKey:{
+      challenge:crypto.getRandomValues(new Uint8Array(32)),
+      allowCredentials:[{type:"public-key", id:unb64(id)}],
+      userVerification:"required", timeout:60000
+    }});
+    return true;
+  }catch(e){ return false; }
+}
+async function maybeOfferBio(){
+  if(localStorage.getItem("bioId")) return;
+  if(!(await bioAvailable())) return;
+  if(confirm("この端末で次回からFace ID / Touch IDで開けるようにしますか？")){
+    const ok=await bioRegister(); toast(ok?"Face ID / Touch IDを設定しました":"設定できませんでした");
+  }
+}
+async function doBioUnlock(){
+  const dev=localStorage.getItem("devicePin");
+  const ok=await bioUnlock();
+  if(ok && dev){ tryUnlock(dev); } else { toast("認証できませんでした。PINを入力してください"); }
+}
+/* --- 起動 --- */
+async function init(){
+  buildKeypad();
+  if(!API){ loadData(); return; }
+  const dev=localStorage.getItem("devicePin");
+  if(dev){
+    if(localStorage.getItem("bioId")){
+      const ok=await bioUnlock();
+      if(ok){ tryUnlock(dev); return; }
+      showLock(); return;
+    }
+    tryUnlock(dev); return;
+  }
+  currentPin="";
+  const j=await apiPost({action:"list", pin:""}).catch(()=>null);
+  if(j && j.error==="auth"){ showLock(); return; }
+  if(j && j.items!==undefined){ DATA=j.items||[]; banner("",""); render(); updateLockBtn(); return; }
+  DATA=SAMPLE.slice(); banner("サーバーに接続できませんでした。設定を確認してください（デモ表示中）。","warn"); render();
+}
+init();
 </script>
 </body>
 </html>
