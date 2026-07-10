@@ -125,6 +125,21 @@
     padding:12px 18px; border-radius:12px; font-size:13px; font-weight:700; opacity:0; transition:.25s; pointer-events:none; max-width:88%; text-align:center;}
   .toast.show{opacity:1;}
   .empty{text-align:center; color:var(--muted); padding:48px 24px;} .empty .big{font-size:32px; margin-bottom:8px;}
+
+  .gallery{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:14px;}
+  .gcellimg{position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden;
+    background:linear-gradient(135deg,var(--light),var(--blue)); display:grid; place-items:center; color:#fff; font-size:30px;}
+  .gcellimg img{width:100%; height:100%; object-fit:cover;}
+  .gcellimg .rm{position:absolute; top:4px; right:4px; width:24px; height:24px; border:none; border-radius:50%;
+    background:rgba(11,37,69,.78); color:#fff; font-size:13px; line-height:1; cursor:pointer;}
+  .addtile{aspect-ratio:1; border:2px dashed var(--light); border-radius:10px; display:grid; place-items:center;
+    color:var(--muted); font-size:13px; font-weight:800; cursor:pointer; text-align:center; background:var(--bg);}
+  .addtile small{font-weight:600; font-size:10px;}
+  .previewgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px;}
+  .previewgrid .pv{position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden;}
+  .previewgrid .pv img{width:100%; height:100%; object-fit:cover;}
+  .previewgrid .pv .rm{position:absolute; top:2px; right:2px; width:20px; height:20px; border:none; border-radius:50%;
+    background:rgba(11,37,69,.8); color:#fff; font-size:11px; line-height:1; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -182,7 +197,7 @@ const SAMPLE=[
  {mg:"AQ-011",t:"商品",g:"クーラー関係",name:"ゼンスイ ZC-500α クーラー",rank:"B",status:"未提案",price:28000,loc:"D-4",damage:"",dirt:"本体に水垢",remark:"冷却良好"},
 ];
 
-let DATA=[], fStatus="すべて", qStr="", openG={}, curPhoto=null, curMg=null;
+let DATA=[], fStatus="すべて", qStr="", openG={}, curPhotos=[], curMg=null;
 const $=id=>document.getElementById(id);
 
 ["すべて","未提案","提案中","販売済み"].forEach(s=>{
@@ -194,7 +209,14 @@ $("q").addEventListener("input",e=>{qStr=e.target.value.trim();render();});
 
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
 function sizeStr(it){return it.h?`${it.w}×${it.d}×${it.h}mm`:`${it.w}×${it.d}mm`;}
-function photoSrc(it){return it.photoUrl || (it.photo && String(it.photo).indexOf("data:")===0 ? it.photo : "");}
+function photoList(it){
+  if(it.photoUrls && it.photoUrls.length) return it.photoUrls;
+  if(it.photos && it.photos.length) return it.photos.filter(p=>String(p).indexOf("data:")===0);
+  if(it.photoUrl) return [it.photoUrl];
+  if(it.photo && String(it.photo).indexOf("data:")===0) return [it.photo];
+  return [];
+}
+function photoSrc(it){const l=photoList(it); return l.length?l[0]:"";}
 function banner(msg,type){const b=$("banner"); b.textContent=msg||""; b.className="banner-bar"+(msg?(" "+type):"");}
 
 /* ---------- データ読み込み / API ---------- */
@@ -211,7 +233,7 @@ async function apiPost(payload){
   const res=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
   return await res.json();
 }
-function cleanItem(it){const o=Object.assign({},it); delete o.photoUrl; delete o.photoDataUrl; return o;}
+function cleanItem(it){const o=Object.assign({},it); delete o.photoUrl; delete o.photoUrls; delete o.photoDataUrl; delete o.photoDataUrls; return o;}
 
 /* ---------- 描画 ---------- */
 function pass(it){
@@ -278,11 +300,13 @@ function detail(mg){
     rows=[["ジャンル",it.g],["規格",it.std],["サイズ",sizeStr(it)],["状態ランク",it.rank],["想定価格","¥"+(it.price||0).toLocaleString()],["保管場所",it.loc]];
     extra=`<div class="cell full"><div class="lb">状態メモ</div><div class="vl" style="font-weight:500">${esc(it.note)||"—"}</div></div>`;
   }
-  const ph=photoSrc(it);
+  const photos=photoList(it);
+  let cells=photos.map((src,i)=>`<div class="gcellimg"><img src="${src}"><button class="rm" onclick="removePhoto(${i})">✕</button></div>`).join("");
+  if(!photos.length) cells=`<div class="gcellimg ph">${GICON[it.g]}</div>`;
+  const addTile=photos.length<10?`<div class="addtile" onclick="document.getElementById('dpick').click()">＋写真<br><small>${photos.length}/10</small></div>`:"";
   $("dBody").innerHTML=`
-    <div class="photo">${ph?`<img src="${ph}">`:GICON[it.g]}
-      <button class="photobtn" onclick="document.getElementById('dpick').click()">📷 写真を${ph?"変更":"追加"}</button></div>
-    <input type="file" id="dpick" accept="image/*" style="display:none" onchange="setPhoto(this)">
+    <div class="gallery">${cells}${addTile}</div>
+    <input type="file" id="dpick" accept="image/*" multiple style="display:none" onchange="addPhotos(this)">
     ${s}
     <button class="btn sec" style="width:100%;margin-top:2px" onclick="editMode()">✎ 内容を編集する</button>
     <div class="grid">${rows.map(([l,v])=>`<div class="cell"><div class="lb">${l}</div><div class="vl">${esc(v)||"—"}</div></div>`).join("")}${extra}</div>`;
@@ -317,16 +341,37 @@ function readResized(file, cb){
     img.src=r.result;};
   r.readAsDataURL(file);
 }
-function setPhoto(inp){const f=inp.files[0]; if(!f)return;
-  readResized(f, async(durl)=>{
-    const it=DATA.find(x=>x.mg===curMg);
-    if(!API){ it.photo=durl; detail(curMg); render(); toast("写真を追加（デモ）"); return; }
-    toast("写真を保存中…");
-    try{ const j=await apiPost({action:"save",item:Object.assign(cleanItem(it),{photoDataUrl:durl})});
-      if(j&&j.ok){ Object.assign(it,j.item); detail(curMg); render(); toast("写真をアップロードしました"); }
-      else toast("保存に失敗しました"); }
-    catch(e){ toast("通信エラー"); }
+function resizeAll(files, cb){
+  const out=[]; let i=0;
+  (function next(){ if(i>=files.length){cb(out);return;} readResized(files[i], d=>{out.push(d); i++; next();}); })();
+}
+async function persistItem(it, newDataUrls){
+  if(!API) return;
+  toast("保存中…");
+  try{ const j=await apiPost({action:"save",item:Object.assign(cleanItem(it),{photos:it.photos||[], photoDataUrls:newDataUrls||[]})});
+    if(j&&j.ok){ Object.assign(it,j.item); detail(curMg); render(); toast("更新しました"); }
+    else toast("保存に失敗しました"); }
+  catch(e){ toast("通信エラー"); }
+}
+function addPhotos(inp){
+  const files=[...inp.files]; if(!files.length)return;
+  const it=DATA.find(x=>x.mg===curMg);
+  const cur=(it.photos?it.photos.length:photoList(it).length);
+  const room=10-cur;
+  if(room<=0){ toast("写真は最大10枚までです"); return; }
+  const use=files.slice(0,room);
+  if(files.length>room) toast("最大10枚まで。"+room+"枚を追加します");
+  resizeAll(use, durls=>{
+    if(!API){ it.photos=(it.photos||[]).concat(durls); detail(curMg); render(); toast(durls.length+"枚を追加（デモ）"); return; }
+    toast(durls.length+"枚を保存中…"); persistItem(it, durls);
   });
+}
+function removePhoto(i){
+  const it=DATA.find(x=>x.mg===curMg); if(!it)return;
+  if(it.photos) it.photos.splice(i,1);
+  if(it.photoUrls) it.photoUrls.splice(i,1);
+  if(!API){ detail(curMg); render(); toast("写真を削除（デモ）"); return; }
+  persistItem(it, []);
 }
 
 /* ---------- 編集 ---------- */
@@ -378,7 +423,7 @@ async function saveEdit(){
 }
 
 /* ---------- 追加（設置部） ---------- */
-function openAdd(){curPhoto=null; renderChooser(); showS("aSheet");}
+function openAdd(){curPhotos=[]; renderChooser(); showS("aSheet");}
 function renderChooser(){
   $("aTitle").textContent="在庫を追加";
   $("aBody").innerHTML=`
@@ -390,11 +435,12 @@ function renderChooser(){
         <small>フィルター・クーラー・照明・ポンプ等<br>ランク・破損・汚れ・備考を登録</small></button>
     </div>`;
 }
-function photoField(){return `<div class="field"><label>写真（撮影／ライブラリから選択）</label>
-    <div class="dropzone" id="drop" onclick="document.getElementById('pick').click()">📷 タップして写真を撮影／選択</div>
-    <input type="file" id="pick" accept="image/*" style="display:none" onchange="prev(this)"></div>`;}
+function photoField(){return `<div class="field"><label>写真（複数選択可・最大10枚）</label>
+    <div class="dropzone" id="drop" onclick="document.getElementById('pick').click()">📷 タップして写真を撮影／選択（複数可）</div>
+    <input type="file" id="pick" accept="image/*" multiple style="display:none" onchange="prev(this)">
+    <div class="previewgrid" id="preview"></div></div>`;}
 function addForm(t){
-  curPhoto=null;
+  curPhotos=[];
   const gs=t==="水槽"?TANK_G:GOODS_G;
   const gopt=gs.map(g=>`<option>${g}</option>`).join("");
   $("aTitle").textContent=(t==="水槽"?"中古水槽を追加":"中古商品を追加");
@@ -423,7 +469,19 @@ function addForm(t){
     ${photoField()}${fields}
     <button class="submit" onclick="addItem('${t}')">この内容で登録する</button>`;
 }
-function prev(inp){const f=inp.files[0]; if(!f)return; readResized(f,(durl)=>{curPhoto=durl; $("drop").innerHTML=`<img src="${durl}">`;});}
+function prev(inp){
+  const files=[...inp.files]; if(!files.length)return;
+  const room=10-curPhotos.length;
+  if(room<=0){ toast("写真は最大10枚までです"); return; }
+  const use=files.slice(0,room);
+  if(files.length>room) toast("最大10枚まで。"+room+"枚を追加します");
+  resizeAll(use, durls=>{ curPhotos=curPhotos.concat(durls); renderPreviews(); });
+}
+function renderPreviews(){
+  const box=$("preview"); if(box) box.innerHTML=curPhotos.map((d,i)=>`<div class="pv"><img src="${d}"><button class="rm" onclick="rmPreview(${i})">✕</button></div>`).join("");
+  const d=$("drop"); if(d) d.innerHTML= curPhotos.length? `＋さらに追加（${curPhotos.length}/10）` : "📷 タップして写真を撮影／選択（複数可）";
+}
+function rmPreview(i){ curPhotos.splice(i,1); renderPreviews(); }
 function nextMgLocal(){let mx=0; DATA.forEach(it=>{const n=parseInt((String(it.mg).match(/\d+/)||[0])[0]); if(n>mx)mx=n;}); return "AQ-"+String(mx+1).padStart(3,"0");}
 async function addItem(t){
   if(!$("fName").value.trim()){toast("品名を入力してください");return;}
@@ -432,9 +490,9 @@ async function addItem(t){
   let item;
   if(t==="水槽") item=Object.assign(base,{w:+$("fW").value||0,d:+$("fD").value||0,h:+$("fH").value||0,std:$("fStd").value,note:$("fNote").value.trim()});
   else item=Object.assign(base,{damage:$("fDmg").value.trim(),dirt:$("fDirt").value.trim(),remark:$("fRemark").value.trim()});
-  if(curPhoto) item.photoDataUrl=curPhoto;
+  item.photos=[]; if(curPhotos.length) item.photoDataUrls=curPhotos.slice();
   closeS("aSheet");
-  if(!API){ item.mg=nextMgLocal(); if(curPhoto){item.photo=curPhoto;} DATA.unshift(item); openG[item.g]=true; render(); toast(item.mg+" を登録（デモ）"); return; }
+  if(!API){ item.mg=nextMgLocal(); item.photos=curPhotos.slice(); delete item.photoDataUrls; DATA.unshift(item); openG[item.g]=true; render(); toast(item.mg+" を登録（デモ）"); return; }
   toast("保存中…");
   try{
     const j=await apiPost({action:"save",item:item});
