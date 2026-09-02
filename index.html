@@ -238,7 +238,9 @@ const $=id=>document.getElementById(id);
 $("q").addEventListener("input",e=>{qStr=e.target.value.trim();render();});
 
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
-function sizeStr(it){return it.h?`${it.w}×${it.d}×${it.h}mm`:`${it.w}×${it.d}mm`;}
+function sizeStr(it){return it.h?`${it.w}×${it.d}×${it.h}mm`:(it.w&&it.d?`${it.w}×${it.d}mm`:"");}
+function dimStr(w,d,h){ w=+w||0; d=+d||0; h=+h||0; return h?`${w}×${d}×${h}mm`:(w&&d?`${w}×${d}mm`:""); }
+function primarySize(it){ return dimStr(it.w,it.d,it.h)||dimStr(it.standW,it.standD,it.standH)||dimStr(it.coverW,it.coverD,it.coverH)||dimStr(it.sumpW,it.sumpD,it.sumpH)||""; }
 function photoList(it){
   if(it.photoUrls && it.photoUrls.length) return it.photoUrls;
   if(it.photos && it.photos.length) return it.photos.filter(p=>String(p).indexOf("data:")===0);
@@ -291,7 +293,7 @@ function render(){
   $("groups").innerHTML=html; $("empty").style.display=shown?"none":"block";
 }
 function cardHtml(it){
-  const sizeSpan=it.t==="商品"?"":`<span>📐 ${sizeStr(it)}</span>`;
+  const _ps=primarySize(it); const sizeSpan=(it.t==="商品"||!_ps)?"":`<span>📐 ${_ps}</span>`;
   const ph=photoSrc(it);
   return `<div class="card" onclick="detail('${it.mg}')">
   <div class="thumb">${ph?`<img src="${ph}">`:GICON[it.g]}</div>
@@ -328,8 +330,16 @@ function detail(mg){
       <div class="cell full"><div class="lb">汚れ・使用感</div><div class="vl" style="font-weight:500">${esc(it.dirt)||"—"}</div></div>
       <div class="cell full"><div class="lb">備考</div><div class="vl" style="font-weight:500">${esc(it.remark)||"—"}</div></div>`;
   }else{
-    rows=[["ジャンル",it.g],["規格",it.std],["サイズ",sizeStr(it)],["状態ランク",it.rank],["想定価格","¥"+(it.price||0).toLocaleString()],["保管場所",it.loc]];
-    extra=`<div class="cell full"><div class="lb">状態メモ</div><div class="vl" style="font-weight:500">${esc(it.note)||"—"}</div></div>`;
+    rows=[["ジャンル",it.g],["規格",it.std],["状態ランク",it.rank],["想定価格","¥"+(it.price||0).toLocaleString()]];
+    var sz=[];
+    var a=dimStr(it.w,it.d,it.h); if(a) sz.push(["水槽サイズ",a]);
+    var b=dimStr(it.standW,it.standD,it.standH); if(b) sz.push(["水槽台サイズ",b]);
+    var c=dimStr(it.coverW,it.coverD,it.coverH); if(c) sz.push(["上部カバーサイズ",c]);
+    var d2=dimStr(it.sumpW,it.sumpD,it.sumpH); if(d2) sz.push(["濾過槽サイズ",d2]);
+    if(!sz.length) sz.push(["サイズ","—"]);
+    extra=`<div class="cell"><div class="lb">保管場所</div><div class="vl">${esc(it.loc)||"—"}</div></div>`
+      + sz.map(x=>`<div class="cell full"><div class="lb">${x[0]}</div><div class="vl">${x[1]}</div></div>`).join("")
+      + `<div class="cell full"><div class="lb">状態メモ</div><div class="vl" style="font-weight:500">${esc(it.note)||"—"}</div></div>`;
   }
   const photos=photoList(it);
   let cells=photos.map((src,i)=>`<div class="gcellimg"><img src="${src}"><button class="rm" onclick="removePhoto(${i})">✕</button></div>`).join("");
@@ -427,8 +437,14 @@ function editMode(){
     body=`
     <div class="field"><label>ジャンル</label><select id="eG">${gopt}</select></div>
     <div class="field"><label>品名・呼称</label><input id="eName" value="${esc(it.name)}"></div>
-    <div class="field"><label>サイズ W × D × H（mm）</label>
+    <div class="field"><label>水槽サイズ W × D × H（mm）</label>
       <div class="row3"><input id="eW" type="number" value="${it.w||''}"><input id="eD" type="number" value="${it.d||''}"><input id="eH" type="number" value="${it.h||''}"></div></div>
+    <div class="field"><label>水槽台サイズ W × D × H（mm）</label>
+      <div class="row3"><input id="eStW" type="number" value="${it.standW||''}"><input id="eStD" type="number" value="${it.standD||''}"><input id="eStH" type="number" value="${it.standH||''}"></div></div>
+    <div class="field"><label>上部カバーサイズ W × D × H（mm）</label>
+      <div class="row3"><input id="eCvW" type="number" value="${it.coverW||''}"><input id="eCvD" type="number" value="${it.coverD||''}"><input id="eCvH" type="number" value="${it.coverH||''}"></div></div>
+    <div class="field"><label>濾過槽サイズ W × D × H（mm）</label>
+      <div class="row3"><input id="eFtW" type="number" value="${it.sumpW||''}"><input id="eFtD" type="number" value="${it.sumpD||''}"><input id="eFtH" type="number" value="${it.sumpH||''}"></div></div>
     <div class="row2"><div class="field"><label>規格</label><select id="eStd">${stds}</select></div>
       <div class="field"><label>状態ランク</label><select id="eRank">${rks}</select></div></div>
     <div class="row2"><div class="field"><label>想定価格（円）</label><input id="ePrice" type="number" value="${it.price||''}"></div>
@@ -445,7 +461,11 @@ async function saveEdit(){
   it.g=$("eG").value; it.name=$("eName").value.trim()||it.name; it.rank=$("eRank").value;
   it.price=+$("ePrice").value||0; it.loc=$("eLoc").value.trim()||"—";
   if(it.t==="商品"){ it.damage=$("eDmg").value.trim(); it.dirt=$("eDirt").value.trim(); it.remark=$("eRemark").value.trim(); }
-  else{ it.w=+$("eW").value||0; it.d=+$("eD").value||0; it.h=+$("eH").value||0; it.std=$("eStd").value; it.note=$("eNote").value.trim(); }
+  else{ it.w=+$("eW").value||0; it.d=+$("eD").value||0; it.h=+$("eH").value||0;
+    it.standW=+$("eStW").value||0; it.standD=+$("eStD").value||0; it.standH=+$("eStH").value||0;
+    it.coverW=+$("eCvW").value||0; it.coverD=+$("eCvD").value||0; it.coverH=+$("eCvH").value||0;
+    it.sumpW=+$("eFtW").value||0; it.sumpD=+$("eFtD").value||0; it.sumpH=+$("eFtH").value||0;
+    it.std=$("eStd").value; it.note=$("eNote").value.trim(); }
   detail(curMg); render();
   if(!API){ toast("更新（デモ）"); return; }
   toast("保存中…");
@@ -480,7 +500,10 @@ function addForm(t){
     fields=`
     <div class="field"><label>ジャンル</label><select id="fGenre">${gopt}</select></div>
     <div class="field"><label>品名・呼称</label><input id="fName" placeholder="例: 90cm規格 淡水フルセット"></div>
-    <div class="field"><label>サイズ W × D × H（mm）</label><div class="row3"><input id="fW" type="number" placeholder="W"><input id="fD" type="number" placeholder="D"><input id="fH" type="number" placeholder="H"></div></div>
+    <div class="field"><label>水槽サイズ W × D × H（mm）</label><div class="row3"><input id="fW" type="number" placeholder="W"><input id="fD" type="number" placeholder="D"><input id="fH" type="number" placeholder="H"></div></div>
+    <div class="field"><label>水槽台サイズ W × D × H（mm）</label><div class="row3"><input id="fStW" type="number" placeholder="W"><input id="fStD" type="number" placeholder="D"><input id="fStH" type="number" placeholder="H"></div></div>
+    <div class="field"><label>上部カバーサイズ W × D × H（mm）</label><div class="row3"><input id="fCvW" type="number" placeholder="W"><input id="fCvD" type="number" placeholder="D"><input id="fCvH" type="number" placeholder="H"></div></div>
+    <div class="field"><label>濾過槽サイズ W × D × H（mm）</label><div class="row3"><input id="fFtW" type="number" placeholder="W"><input id="fFtD" type="number" placeholder="D"><input id="fFtH" type="number" placeholder="H"></div></div>
     <div class="row2"><div class="field"><label>規格</label><select id="fStd"><option>60cm</option><option>90cm</option><option>120cm</option><option>150cm</option><option selected>その他</option></select></div>
       <div class="field"><label>状態ランク</label><select id="fRank"><option>A</option><option>B</option><option>C</option></select></div></div>
     <div class="row2"><div class="field"><label>想定価格（円）</label><input id="fPrice" type="number"></div><div class="field"><label>保管場所</label><input id="fLoc" placeholder="A-1"></div></div>
@@ -519,7 +542,12 @@ async function addItem(t){
   const base={mg:"",t:t,g:$("fGenre").value,name:$("fName").value.trim(),rank:$("fRank").value,
     status:"未提案",price:+$("fPrice").value||0,loc:$("fLoc").value.trim()||"—"};
   let item;
-  if(t==="水槽") item=Object.assign(base,{w:+$("fW").value||0,d:+$("fD").value||0,h:+$("fH").value||0,std:$("fStd").value,note:$("fNote").value.trim()});
+  if(t==="水槽") item=Object.assign(base,{
+    w:+$("fW").value||0,d:+$("fD").value||0,h:+$("fH").value||0,
+    standW:+$("fStW").value||0,standD:+$("fStD").value||0,standH:+$("fStH").value||0,
+    coverW:+$("fCvW").value||0,coverD:+$("fCvD").value||0,coverH:+$("fCvH").value||0,
+    sumpW:+$("fFtW").value||0,sumpD:+$("fFtD").value||0,sumpH:+$("fFtH").value||0,
+    std:$("fStd").value,note:$("fNote").value.trim()});
   else item=Object.assign(base,{damage:$("fDmg").value.trim(),dirt:$("fDirt").value.trim(),remark:$("fRemark").value.trim()});
   item.photos=[]; if(curPhotos.length) item.photoDataUrls=curPhotos.slice();
   closeS("aSheet");
