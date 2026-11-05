@@ -110,6 +110,15 @@
   .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);}
   .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  /* サイズ入力（幅・奥行・高さを個別ラベル付きで） */
+  .sizebox{border:1.5px solid var(--line); border-radius:12px; padding:10px 11px 12px; background:#fbfcfe; margin-bottom:12px;}
+  .sizebox .sizettl{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:var(--deep); margin-bottom:9px;}
+  .sizebox .unit{margin-left:auto; font-size:10px; font-weight:700; color:#8c9aa8; background:#eef3f8; padding:2px 8px; border-radius:999px;}
+  .dimgrid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
+  .dimgrid .dim label{display:block; font-size:11px; font-weight:700; color:#7b8794; margin-bottom:4px;}
+  .dimgrid input{width:100%; padding:10px; border:1.5px solid var(--line); border-radius:10px; font-size:15px; outline:none; background:#fff;}
+  .dimgrid input:focus{border-color:var(--blue);}
+  .sizehint{font-size:11px; color:#8c9aa8; margin:-4px 0 12px; line-height:1.5;}
   .dropzone{border:2px dashed var(--light); border-radius:12px; padding:20px; text-align:center; color:var(--muted); font-size:13px; cursor:pointer; background:var(--bg);}
   .dropzone img{max-width:100%; max-height:180px; border-radius:10px;}
   .submit{width:100%; border:none; border-radius:12px; padding:15px; font-size:15px; font-weight:800; background:var(--teal); color:#fff; cursor:pointer; margin-top:4px;}
@@ -437,14 +446,7 @@ function editMode(){
     body=`
     <div class="field"><label>ジャンル</label><select id="eG">${gopt}</select></div>
     <div class="field"><label>品名・呼称</label><input id="eName" value="${esc(it.name)}"></div>
-    <div class="field"><label>水槽サイズ W × D × H（mm）</label>
-      <div class="row3"><input id="eW" type="number" value="${it.w||''}"><input id="eD" type="number" value="${it.d||''}"><input id="eH" type="number" value="${it.h||''}"></div></div>
-    <div class="field"><label>水槽台サイズ W × D × H（mm）</label>
-      <div class="row3"><input id="eStW" type="number" value="${it.standW||''}"><input id="eStD" type="number" value="${it.standD||''}"><input id="eStH" type="number" value="${it.standH||''}"></div></div>
-    <div class="field"><label>上部カバーサイズ W × D × H（mm）</label>
-      <div class="row3"><input id="eCvW" type="number" value="${it.coverW||''}"><input id="eCvD" type="number" value="${it.coverD||''}"><input id="eCvH" type="number" value="${it.coverH||''}"></div></div>
-    <div class="field"><label>濾過槽サイズ W × D × H（mm）</label>
-      <div class="row3"><input id="eFtW" type="number" value="${it.sumpW||''}"><input id="eFtD" type="number" value="${it.sumpD||''}"><input id="eFtH" type="number" value="${it.sumpH||''}"></div></div>
+    ${sizeBlocks("e", it)}
     <div class="row2"><div class="field"><label>規格</label><select id="eStd">${stds}</select></div>
       <div class="field"><label>状態ランク</label><select id="eRank">${rks}</select></div></div>
     <div class="row2"><div class="field"><label>想定価格（円）</label><input id="ePrice" type="number" value="${it.price||''}"></div>
@@ -486,6 +488,25 @@ function renderChooser(){
         <small>フィルター・クーラー・照明・ポンプ等<br>ランク・破損・汚れ・備考を登録</small></button>
     </div>`;
 }
+/* サイズ入力ブロック（幅／奥行／高さを個別ラベルで表示） */
+function sizeBlock(title, icon, ids, vals){
+  const lb=["幅 (W)","奥行 (D)","高さ (H)"];
+  const cells=ids.map((id,i)=>{
+    const v=(vals&&vals[i])?vals[i]:"";
+    return `<div class="dim"><label>${lb[i]}</label><input id="${id}" type="number" inputmode="numeric" min="0" placeholder="0" value="${v}"></div>`;
+  }).join("");
+  return `<div class="sizebox">
+    <div class="sizettl">${icon} ${title}<span class="unit">単位：mm</span></div>
+    <div class="dimgrid">${cells}</div></div>`;
+}
+function sizeBlocks(p, vals){
+  const v=vals||{};
+  return sizeBlock("水槽サイズ","🐠",[p+"W",p+"D",p+"H"],[v.w,v.d,v.h])
+    + sizeBlock("水槽台サイズ","🪵",[p+"StW",p+"StD",p+"StH"],[v.standW,v.standD,v.standH])
+    + sizeBlock("上部カバーサイズ","🔲",[p+"CvW",p+"CvD",p+"CvH"],[v.coverW,v.coverD,v.coverH])
+    + sizeBlock("濾過槽サイズ","💧",[p+"FtW",p+"FtD",p+"FtH"],[v.sumpW,v.sumpD,v.sumpH])
+    + `<div class="sizehint">※ 該当しない・採寸していない箇所は空欄のままで構いません。</div>`;
+}
 function photoField(){return `<div class="field"><label>写真（複数選択可・最大10枚）</label>
     <div class="dropzone" id="drop" onclick="document.getElementById('pick').click()">📷 タップして写真を撮影／選択（複数可）</div>
     <input type="file" id="pick" accept="image/*" multiple style="display:none" onchange="prev(this)">
@@ -500,10 +521,7 @@ function addForm(t){
     fields=`
     <div class="field"><label>ジャンル</label><select id="fGenre">${gopt}</select></div>
     <div class="field"><label>品名・呼称</label><input id="fName" placeholder="例: 90cm規格 淡水フルセット"></div>
-    <div class="field"><label>水槽サイズ W × D × H（mm）</label><div class="row3"><input id="fW" type="number" placeholder="W"><input id="fD" type="number" placeholder="D"><input id="fH" type="number" placeholder="H"></div></div>
-    <div class="field"><label>水槽台サイズ W × D × H（mm）</label><div class="row3"><input id="fStW" type="number" placeholder="W"><input id="fStD" type="number" placeholder="D"><input id="fStH" type="number" placeholder="H"></div></div>
-    <div class="field"><label>上部カバーサイズ W × D × H（mm）</label><div class="row3"><input id="fCvW" type="number" placeholder="W"><input id="fCvD" type="number" placeholder="D"><input id="fCvH" type="number" placeholder="H"></div></div>
-    <div class="field"><label>濾過槽サイズ W × D × H（mm）</label><div class="row3"><input id="fFtW" type="number" placeholder="W"><input id="fFtD" type="number" placeholder="D"><input id="fFtH" type="number" placeholder="H"></div></div>
+    ${sizeBlocks("f")}
     <div class="row2"><div class="field"><label>規格</label><select id="fStd"><option>60cm</option><option>90cm</option><option>120cm</option><option>150cm</option><option selected>その他</option></select></div>
       <div class="field"><label>状態ランク</label><select id="fRank"><option>A</option><option>B</option><option>C</option></select></div></div>
     <div class="row2"><div class="field"><label>想定価格（円）</label><input id="fPrice" type="number"></div><div class="field"><label>保管場所</label><input id="fLoc" placeholder="A-1"></div></div>
