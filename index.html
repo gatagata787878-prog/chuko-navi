@@ -112,13 +112,29 @@
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
   /* サイズ入力（幅・奥行・高さを個別ラベル付きで） */
   .sizebox{border:1.5px solid var(--line); border-radius:12px; padding:10px 11px 12px; background:#fbfcfe; margin-bottom:12px;}
-  .sizebox .sizettl{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:var(--deep); margin-bottom:9px;}
-  .sizebox .unit{margin-left:auto; font-size:10px; font-weight:700; color:#8c9aa8; background:#eef3f8; padding:2px 8px; border-radius:999px;}
+  .sizettl{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:var(--deep); margin-bottom:9px;}
+  .unit{margin-left:auto; font-size:10px; font-weight:700; color:#8c9aa8; background:#eef3f8; padding:2px 8px; border-radius:999px; white-space:nowrap;}
   .dimgrid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
   .dimgrid .dim label{display:block; font-size:11px; font-weight:700; color:#7b8794; margin-bottom:4px;}
   .dimgrid input{width:100%; padding:10px; border:1.5px solid var(--line); border-radius:10px; font-size:15px; outline:none; background:#fff;}
   .dimgrid input:focus{border-color:var(--blue);}
   .sizehint{font-size:11px; color:#8c9aa8; margin:-4px 0 12px; line-height:1.5;}
+  .boxhint{font-size:11px; color:#7b8794; margin-top:8px; line-height:1.5;}
+  .boxhint b{color:var(--deep);}
+  .dimgrid.onecol{grid-template-columns:1fr;}
+  /* 題名パーツ・付属機材 */
+  .namebox{border:1.5px solid var(--line); border-radius:12px; padding:10px 11px 12px; background:#fbfcfe; margin-bottom:12px;}
+  .namebox .field{margin-bottom:10px;}
+  .namepv{background:#eef3f8; border-radius:9px; padding:9px 11px; font-size:13px; color:#55606c; line-height:1.5; word-break:break-all;}
+  .namepv b{color:var(--deep); font-size:14px;}
+  .gearwrap{display:grid; grid-template-columns:1fr 1fr; gap:6px 8px;}
+  .gchk{display:flex; align-items:center; gap:7px; background:#fff; border:1.5px solid var(--line); border-radius:10px; padding:9px 10px; font-size:13px; font-weight:600; color:#44505c;}
+  .gchk input{width:17px; height:17px; flex:none; accent-color:var(--blue); margin:0;}
+  .gchk span{line-height:1.25;}
+  .rulenote{background:#fff7e8; border:1.5px solid #f0ddb8; border-radius:11px; padding:9px 11px; font-size:11.5px; color:#7a6336; line-height:1.6; margin-bottom:12px;}
+  .rulenote b{color:#9a7421;}
+  .chiplist{display:flex; flex-wrap:wrap; gap:5px; margin-top:3px;}
+  .chip{background:#eef3f8; color:var(--deep); border-radius:999px; padding:3px 10px; font-size:12px; font-weight:700;}
   .dropzone{border:2px dashed var(--light); border-radius:12px; padding:20px; text-align:center; color:var(--muted); font-size:13px; cursor:pointer; background:var(--bg);}
   .dropzone img{max-width:100%; max-height:180px; border-radius:10px;}
   .submit{width:100%; border:none; border-radius:12px; padding:15px; font-size:15px; font-weight:800; background:var(--teal); color:#fff; cursor:pointer; margin-top:4px;}
@@ -228,6 +244,14 @@ const GOODS_G=["フィルター関係","クーラー関係","照明関係","ポ�
 const GENRES=TANK_G.concat(GOODS_G);
 const GICON={"水槽フルセット":"🐠","水槽のみ":"🫙","水槽台":"🪵","上部カバー":"🔲","ろ過槽":"🌀","フィルター関係":"⚙️","クーラー関係":"❄️","照明関係":"💡","ポンプ・その他機材":"🔧"};
 
+/* 題名の自動生成に使う選択肢 */
+const FILT_OPTS=["","OF","外部","上部","外掛け","底面","なし"];   /* ろ過方式 */
+const MAT_OPTS =["","アクリル","ガラス"];                          /* 素材 */
+/* 付属機材チェックリスト（水槽フルセットのみ表示） */
+const GEAR_LIST=["クーラー","殺菌灯","メインポンプ","サブポンプ","スキマー","EH（エーハイム）","ライト","エサタイマー","サーモ","フタ","フード上のルーバー"];
+/* 付属機材チェックリストを出すジャンル */
+const GEAR_G="水槽フルセット";
+
 /* API未設定時に表示するデモデータ */
 const SAMPLE=[
  {mg:"AQ-001",t:"水槽",g:"水槽フルセット",name:"60cm規格 淡水フルセット",w:600,d:300,h:360,std:"60cm",rank:"A",status:"未提案",price:35000,loc:"A-1",note:"すぐ提案可"},
@@ -250,6 +274,57 @@ function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"
 function sizeStr(it){return it.h?`${it.w}×${it.d}×${it.h}mm`:(it.w&&it.d?`${it.w}×${it.d}mm`:"");}
 function dimStr(w,d,h){ w=+w||0; d=+d||0; h=+h||0; return h?`${w}×${d}×${h}mm`:(w&&d?`${w}×${d}mm`:""); }
 function primarySize(it){ return dimStr(it.w,it.d,it.h)||dimStr(it.standW,it.standD,it.standH)||dimStr(it.coverW,it.coverD,it.coverH)||dimStr(it.sumpW,it.sumpD,it.sumpH)||""; }
+
+/* ---------- 数値入力の共通処理 ----------
+   iPhoneで全角数字や予測変換・自動入力が混ざると値が壊れるため、
+   入力されたそばから「半角数字だけ」に揃えます。 */
+function toHalf(s){
+  return String(s==null?"":s)
+    .replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)) /* 全角数字→半角 */
+    .replace(/[^0-9]/g, "");                                            /* 数字以外を除去 */
+}
+function numClean(el){
+  const v=toHalf(el.value); if(el.value!==v) el.value=v;
+  const p=String(el.id||"").charAt(0);            /* f=追加フォーム / e=編集フォーム */
+  if(p==="f"||p==="e") updName(p);                /* サイズを直したら題名も作り直す */
+}
+function numv(id){ const e=$(id); if(!e) return 0; const n=parseInt(toHalf(e.value),10); return isNaN(n)?0:n; }
+
+/* ---------- 日付の表示（YYYY-MM-DD に統一） ---------- */
+function ymd(v){
+  if(v===null||v===undefined||v==="") return "";
+  if(v instanceof Date) return dateToYmd(v);
+  const s=String(v).trim();
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);            /* 2026-11-19 / ISO形式 */
+  if(m){
+    if(/T\d{2}:/.test(s)){ const d=new Date(s); if(!isNaN(d)) return dateToYmdJst(d); }
+    return m[1]+"-"+m[2]+"-"+m[3];
+  }
+  m=s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);          /* 2026/11/19 */
+  if(m) return m[1]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[3]).slice(-2);
+  const d=new Date(s); return isNaN(d)?s:dateToYmdJst(d);
+}
+function dateToYmd(d){
+  return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);
+}
+/* 端末の時計が海外時間でも日本の日付になるように直す */
+function dateToYmdJst(d){
+  return dateToYmd(new Date(d.getTime()+(d.getTimezoneOffset()+540)*60000));
+}
+function today(){ return dateToYmd(new Date()); }
+
+/* ---------- 題名の自動生成 ----------
+   サイズ ／ ろ過方式 ／ 素材 ／ 前の案件名 の順に、入っているものだけを並べます。 */
+function buildName(o){
+  const size=primarySize(o).replace(/mm$/,"");   /* 題名では単位を省く */
+  return [size, o.filt||"", o.mat||"", (o.prevJob||"").trim()]
+    .filter(x=>x&&String(x).trim()).join(" ").trim();
+}
+/* 付属機材（カンマ区切り文字列）→配列 */
+function gearList(it){
+  if(Array.isArray(it.gear)) return it.gear.filter(x=>x);
+  return it.gear?String(it.gear).split(",").map(s=>s.trim()).filter(s=>s):[];
+}
 function photoList(it){
   if(it.photoUrls && it.photoUrls.length) return it.photoUrls;
   if(it.photos && it.photos.length) return it.photos.filter(p=>String(p).indexOf("data:")===0);
@@ -280,7 +355,7 @@ function cleanItem(it){const o=Object.assign({},it); delete o.photoUrl; delete o
 /* ---------- 描画 ---------- */
 function pass(it){
   if(fStatus!=="すべて"&&it.status!==fStatus)return false;
-  if(qStr){const hay=(it.mg+" "+it.name+" "+it.g+" "+(it.std||"")+" "+(it.w||"")+" "+(it.d||"")+" "+(it.h||"")).toLowerCase();
+  if(qStr){const hay=(it.mg+" "+it.name+" "+it.g+" "+(it.std||"")+" "+(it.filt||"")+" "+(it.mat||"")+" "+(it.prevJob||"")+" "+(it.loc||"")+" "+(it.propTo||"")+" "+(it.propBy||"")+" "+(it.w||"")+" "+(it.d||"")+" "+(it.h||"")).toLowerCase();
     if(!qStr.toLowerCase().split(/\s+/).every(t=>hay.includes(t)))return false;}
   return true;
 }
@@ -325,7 +400,7 @@ function detail(mg){
     s=`<div class="actions"><button class="btn pri" onclick="askPropose()">営業：この在庫を提案する</button>
       <button class="btn warn" onclick="setSold()">販売済みにする</button></div>`;
   }else if(it.status==="提案中"){
-    s=`<div class="banner prop">🕑 提案中<span class="who">${esc(it.propTo)||"—"}</span>期限：${fmt(it.propUntil)} まで</div>
+    s=`<div class="banner prop">🕑 提案中<span class="who">${esc(it.propTo)||"—"}</span>担当：${esc(it.propBy)||"—"}／期限：${fmt(it.propUntil)} まで</div>
       <div class="actions"><button class="btn warn" onclick="unpropose()">提案を取り消す</button>
       <button class="btn pri" onclick="setSold()">成約（販売済みに）</button></div>`;
   }else{
@@ -334,20 +409,28 @@ function detail(mg){
   }
   let rows,extra;
   if(it.t==="商品"){
-    rows=[["ジャンル",it.g],["状態ランク",it.rank],["想定価格","¥"+(it.price||0).toLocaleString()],["保管場所",it.loc]];
+    rows=[["ジャンル",it.g],["状態ランク",it.rank],["想定価格","¥"+(it.price||0).toLocaleString()],["保管場所",it.loc],["登録日",ymd(it.createdAt)]];
     extra=`<div class="cell full"><div class="lb">破損している箇所</div><div class="vl" style="font-weight:500">${esc(it.damage)||"—"}</div></div>
       <div class="cell full"><div class="lb">汚れ・使用感</div><div class="vl" style="font-weight:500">${esc(it.dirt)||"—"}</div></div>
       <div class="cell full"><div class="lb">備考</div><div class="vl" style="font-weight:500">${esc(it.remark)||"—"}</div></div>`;
   }else{
-    rows=[["ジャンル",it.g],["規格",it.std],["状態ランク",it.rank],["想定価格","¥"+(it.price||0).toLocaleString()]];
+    rows=[["ジャンル",it.g],["規格",it.std],["状態ランク",it.rank],["想定価格","¥"+(it.price||0).toLocaleString()],
+      ["ろ過方式",it.filt],["素材",it.mat],["保管場所",it.loc],["登録日",ymd(it.createdAt)]];
     var sz=[];
-    var a=dimStr(it.w,it.d,it.h); if(a) sz.push(["水槽サイズ",a]);
-    var b=dimStr(it.standW,it.standD,it.standH); if(b) sz.push(["水槽台サイズ",b]);
+    var a=dimStr(it.w,it.d,it.h); if(a) sz.push(["水槽サイズ（実寸）",a]);
+    if(+it.visH) sz.push(["見えがかり高さ",(+it.visH)+"mm"]);
+    var b=dimStr(it.standW,it.standD,it.standH); if(b) sz.push(["水槽台サイズ（高さ＝扉）",b]);
     var c=dimStr(it.coverW,it.coverD,it.coverH); if(c) sz.push(["上部カバーサイズ",c]);
     var d2=dimStr(it.sumpW,it.sumpD,it.sumpH); if(d2) sz.push(["濾過槽サイズ",d2]);
     if(!sz.length) sz.push(["サイズ","—"]);
-    extra=`<div class="cell"><div class="lb">保管場所</div><div class="vl">${esc(it.loc)||"—"}</div></div>`
-      + sz.map(x=>`<div class="cell full"><div class="lb">${x[0]}</div><div class="vl">${x[1]}</div></div>`).join("")
+    const gl=gearList(it);
+    const gearCell=(it.g===GEAR_G)
+      ? `<div class="cell full"><div class="lb">付属機材</div>`
+        + (gl.length?`<div class="chiplist">${gl.map(x=>`<span class="chip">${esc(x)}</span>`).join("")}</div>`
+                    :`<div class="vl">—</div>`) + `</div>`
+      : "";
+    extra= sz.map(x=>`<div class="cell full"><div class="lb">${x[0]}</div><div class="vl">${x[1]}</div></div>`).join("")
+      + gearCell
       + `<div class="cell full"><div class="lb">状態メモ</div><div class="vl" style="font-weight:500">${esc(it.note)||"—"}</div></div>`;
   }
   const photos=photoList(it);
@@ -366,19 +449,39 @@ function detail(mg){
 /* ---------- ステータス操作（営業） ---------- */
 async function pushStatus(it){
   if(!API)return;
-  try{ const j=await apiPost({action:"setStatus",mg:it.mg,status:it.status,propTo:it.propTo||"",propUntil:it.propUntil||""});
+  try{ const j=await apiPost({action:"setStatus",mg:it.mg,status:it.status,propTo:it.propTo||"",propBy:it.propBy||"",propUntil:it.propUntil||""});
     if(!(j&&j.ok)) toast("保存に失敗しました"); }
   catch(e){ toast("通信エラー"); }
 }
+/* 提案フォーム（案件名・担当者名・提案期限） */
 function askPropose(){
-  const to=prompt("提案先（例：○○様案件／△△クリニック様）"); if(to===null)return;
-  const until=prompt("提案期限（例：2026-07-20）","2026-"); if(until===null)return;
-  const it=DATA.find(x=>x.mg===curMg); it.status="提案中"; it.propTo=to||"（未記入）"; it.propUntil=until||"";
+  const it=DATA.find(x=>x.mg===curMg); if(!it)return;
+  $("dBody").innerHTML=`
+    <div class="namebox">
+      <div class="sizettl">📣 この在庫を提案する<span class="unit">${esc(it.mg)}</span></div>
+      <div class="field"><label>案件名</label>
+        <input id="pCase" value="${esc(it.propTo||"")}" placeholder="例: ○○クリニック様 新規"></div>
+      <div class="field"><label>担当者名</label>
+        <input id="pBy" value="${esc(it.propBy||"")}" placeholder="例: 山縣"></div>
+      <div class="field" style="margin-bottom:0"><label>提案期限</label>
+        <input id="pUntil" type="date" value="${ymd(it.propUntil)||defaultUntil()}"></div>
+    </div>
+    <div class="actions"><button class="btn sec" onclick="detail(curMg)">キャンセル</button>
+      <button class="btn pri" onclick="doPropose()">提案中にする</button></div>`;
+}
+function defaultUntil(){ const d=new Date(); d.setDate(d.getDate()+14); return dateToYmd(d); }
+function doPropose(){
+  const it=DATA.find(x=>x.mg===curMg); if(!it)return;
+  const c=$("pCase").value.trim(), b=$("pBy").value.trim(), u=$("pUntil").value;
+  if(!c){ toast("案件名を入力してください"); return; }
+  if(!b){ toast("担当者名を入力してください"); return; }
+  it.status="提案中"; it.propTo=c; it.propBy=b; it.propUntil=u||"";
   detail(curMg); render(); toast("提案中にしました"); pushStatus(it);
 }
-function unpropose(){const it=DATA.find(x=>x.mg===curMg); it.status="未提案"; it.propTo=""; it.propUntil=""; detail(curMg); render(); toast("未提案に戻しました"); pushStatus(it);}
+function clearProp(it){ it.propTo=""; it.propBy=""; it.propUntil=""; }
+function unpropose(){const it=DATA.find(x=>x.mg===curMg); it.status="未提案"; clearProp(it); detail(curMg); render(); toast("未提案に戻しました"); pushStatus(it);}
 function setSold(){const it=DATA.find(x=>x.mg===curMg); it.status="販売済み"; detail(curMg); render(); toast("販売済みにしました"); pushStatus(it);}
-function revert(){const it=DATA.find(x=>x.mg===curMg); it.status="未提案"; it.propTo=""; it.propUntil=""; detail(curMg); render(); toast("在庫に戻しました"); pushStatus(it);}
+function revert(){const it=DATA.find(x=>x.mg===curMg); it.status="未提案"; clearProp(it); detail(curMg); render(); toast("在庫に戻しました"); pushStatus(it);}
 
 /* ---------- 写真 ---------- */
 function readResized(file, cb){
@@ -427,6 +530,7 @@ function removePhoto(i){
 /* ---------- 編集 ---------- */
 function editMode(){
   const it=DATA.find(x=>x.mg===curMg); if(!it)return;
+  gearMemo.e=gearList(it);
   const gs=it.t==="商品"?GOODS_G:TANK_G;
   const gopt=gs.map(g=>`<option ${g===it.g?"selected":""}>${g}</option>`).join("");
   const rks=["A","B","C"].map(x=>`<option ${x===it.rank?"selected":""}>${x}</option>`).join("");
@@ -439,17 +543,21 @@ function editMode(){
     <div class="field"><label>破損している箇所</label><textarea id="eDmg" rows="2">${esc(it.damage)}</textarea></div>
     <div class="field"><label>汚れ・使用感</label><textarea id="eDirt" rows="2">${esc(it.dirt)}</textarea></div>
     <div class="field"><label>備考</label><textarea id="eRemark" rows="2">${esc(it.remark)}</textarea></div>
-    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="ePrice" type="number" value="${it.price||''}"></div>
+    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="ePrice" type="text" inputmode="numeric" autocomplete="off" oninput="numClean(this)" value="${it.price||''}"></div>
       <div class="field"><label>保管場所</label><input id="eLoc" value="${esc(it.loc)}"></div></div>`;
   }else{
     const stds=["60cm","90cm","120cm","150cm","その他"].map(x=>`<option ${x===it.std?"selected":""}>${x}</option>`).join("");
+    /* 旧データ（題名パーツが空）は、今の題名を「前の案件名」に移して消えないようにする */
+    const seed=Object.assign({},it);
+    if(!seed.filt && !seed.mat && !seed.prevJob) seed.prevJob=it.name||"";
     body=`
-    <div class="field"><label>ジャンル</label><select id="eG">${gopt}</select></div>
-    <div class="field"><label>品名・呼称</label><input id="eName" value="${esc(it.name)}"></div>
+    <div class="field"><label>ジャンル</label><select id="eG" onchange="onGenreChange('e')">${gopt}</select></div>
     ${sizeBlocks("e", it)}
+    ${nameFields("e", seed)}
+    <div id="eGearHost">${gearField("e",it,it.g)}</div>
     <div class="row2"><div class="field"><label>規格</label><select id="eStd">${stds}</select></div>
       <div class="field"><label>状態ランク</label><select id="eRank">${rks}</select></div></div>
-    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="ePrice" type="number" value="${it.price||''}"></div>
+    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="ePrice" type="text" inputmode="numeric" autocomplete="off" oninput="numClean(this)" value="${it.price||''}"></div>
       <div class="field"><label>保管場所</label><input id="eLoc" value="${esc(it.loc)}"></div></div>
     <div class="field"><label>状態メモ</label><textarea id="eNote" rows="2">${esc(it.note)}</textarea></div>`;
   }
@@ -457,16 +565,21 @@ function editMode(){
     ${body}
     <div class="actions"><button class="btn sec" onclick="detail(curMg)">キャンセル</button>
       <button class="btn pri" onclick="saveEdit()">保存する</button></div>`;
+  if(it.t!=="商品") updName("e");
 }
 async function saveEdit(){
   const it=DATA.find(x=>x.mg===curMg); if(!it)return;
-  it.g=$("eG").value; it.name=$("eName").value.trim()||it.name; it.rank=$("eRank").value;
-  it.price=+$("ePrice").value||0; it.loc=$("eLoc").value.trim()||"—";
-  if(it.t==="商品"){ it.damage=$("eDmg").value.trim(); it.dirt=$("eDirt").value.trim(); it.remark=$("eRemark").value.trim(); }
-  else{ it.w=+$("eW").value||0; it.d=+$("eD").value||0; it.h=+$("eH").value||0;
-    it.standW=+$("eStW").value||0; it.standD=+$("eStD").value||0; it.standH=+$("eStH").value||0;
-    it.coverW=+$("eCvW").value||0; it.coverD=+$("eCvD").value||0; it.coverH=+$("eCvH").value||0;
-    it.sumpW=+$("eFtW").value||0; it.sumpD=+$("eFtD").value||0; it.sumpH=+$("eFtH").value||0;
+  it.g=$("eG").value; it.rank=$("eRank").value;
+  it.price=numv("ePrice"); it.loc=$("eLoc").value.trim()||"—";
+  if(it.t==="商品"){ it.name=$("eName").value.trim()||it.name;
+    it.damage=$("eDmg").value.trim(); it.dirt=$("eDirt").value.trim(); it.remark=$("eRemark").value.trim(); }
+  else{ it.w=numv("eW"); it.d=numv("eD"); it.h=numv("eH"); it.visH=numv("eVisH");
+    it.standW=numv("eStW"); it.standD=numv("eStD"); it.standH=numv("eStH");
+    it.coverW=numv("eCvW"); it.coverD=numv("eCvD"); it.coverH=numv("eCvH");
+    it.sumpW=numv("eFtW"); it.sumpD=numv("eFtD"); it.sumpH=numv("eFtH");
+    it.filt=$("eFilt").value; it.mat=$("eMat").value; it.prevJob=$("ePrev").value.trim();
+    it.gear=readGear("e").join(",");
+    it.name=buildName(it)||it.name;
     it.std=$("eStd").value; it.note=$("eNote").value.trim(); }
   detail(curMg); render();
   if(!API){ toast("更新（デモ）"); return; }
@@ -489,42 +602,115 @@ function renderChooser(){
     </div>`;
 }
 /* サイズ入力ブロック（幅／奥行／高さを個別ラベルで表示） */
-function sizeBlock(title, icon, ids, vals){
+/* 数字だけを受け付ける入力欄。
+   type="number" はiPhoneで自動入力や全角変換が誤作動することがあるため、
+   type="text" + 数字キーボード + 入力時の自動クリーニングに変更しています。 */
+function numInput(id, label, val){
+  const v=(val===0||val===undefined||val===null)?"":val;
+  return `<div class="dim"><label>${label}</label>`
+    + `<input id="${id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="0" value="${v}"`
+    + ` autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"`
+    + ` oninput="numClean(this)" onblur="numClean(this)"></div>`;
+}
+function sizeBlock(title, icon, ids, vals, hint){
   const lb=["幅 (W)","奥行 (D)","高さ (H)"];
-  const cells=ids.map((id,i)=>{
-    const v=(vals&&vals[i])?vals[i]:"";
-    return `<div class="dim"><label>${lb[i]}</label><input id="${id}" type="number" inputmode="numeric" min="0" placeholder="0" value="${v}"></div>`;
-  }).join("");
+  const cells=ids.map((id,i)=>numInput(id, lb[i], vals?vals[i]:"")).join("");
   return `<div class="sizebox">
     <div class="sizettl">${icon} ${title}<span class="unit">単位：mm</span></div>
-    <div class="dimgrid">${cells}</div></div>`;
+    <div class="dimgrid">${cells}</div>
+    ${hint?`<div class="boxhint">${hint}</div>`:""}</div>`;
 }
 function sizeBlocks(p, vals){
   const v=vals||{};
-  return sizeBlock("水槽サイズ","🐠",[p+"W",p+"D",p+"H"],[v.w,v.d,v.h])
-    + sizeBlock("水槽台サイズ","🪵",[p+"StW",p+"StD",p+"StH"],[v.standW,v.standD,v.standH])
+  return sizeBlock("水槽サイズ","🐠",[p+"W",p+"D",p+"H"],[v.w,v.d,v.h],
+      "水槽は<b>実寸</b>を入力してください。")
+    + `<div class="sizebox">
+        <div class="sizettl">👁 見えがかり高さ<span class="unit">単位：mm</span></div>
+        <div class="dimgrid onecol">${numInput(p+"VisH","見えている高さ",v.visH)}</div>
+        <div class="boxhint">水槽のうち、外から<b>見えている高さ</b>。</div></div>`
+    + sizeBlock("水槽台サイズ","🪵",[p+"StW",p+"StD",p+"StH"],[v.standW,v.standD,v.standH],
+      "高さは<b>外から見える高さ（扉の高さ）</b>を入力。")
     + sizeBlock("上部カバーサイズ","🔲",[p+"CvW",p+"CvD",p+"CvH"],[v.coverW,v.coverD,v.coverH])
     + sizeBlock("濾過槽サイズ","💧",[p+"FtW",p+"FtD",p+"FtH"],[v.sumpW,v.sumpD,v.sumpH])
     + `<div class="sizehint">※ 該当しない・採寸していない箇所は空欄のままで構いません。</div>`;
+}
+
+/* 題名のパーツ入力（ろ過方式・素材・前の案件名）＋ プレビュー */
+function nameFields(p, it){
+  const o=it||{};
+  const sel=(id,opts,cur)=>`<select id="${id}" onchange="updName('${p}')">`
+    + opts.map(x=>`<option value="${x}" ${x===(cur||"")?"selected":""}>${x||"—"}</option>`).join("")
+    + `</select>`;
+  return `<div class="namebox">
+    <div class="sizettl">🏷 題名のパーツ<span class="unit">自動で組み立て</span></div>
+    <div class="row2">
+      <div class="field"><label>ろ過方式</label>${sel(p+"Filt",FILT_OPTS,o.filt)}</div>
+      <div class="field"><label>素材</label>${sel(p+"Mat",MAT_OPTS,o.mat)}</div>
+    </div>
+    <div class="field" style="margin-bottom:8px"><label>前の案件名（どこで使っていたか）</label>
+      <input id="${p}Prev" value="${esc(o.prevJob||"")}" placeholder="例: ビックキャッスル様" oninput="updName('${p}')"></div>
+    <div class="namepv">題名：<b id="${p}NamePv">—</b></div>
+    <div class="boxhint">サイズ・ろ過方式・素材・前の案件名の順に自動で並びます。</div>
+  </div>`;
+}
+/* パーツが変わるたびに題名プレビューを作り直す */
+function updName(p){
+  const el=$(p+"NamePv"); if(!el) return;
+  const o={ w:numv(p+"W"), d:numv(p+"D"), h:numv(p+"H"),
+            standW:numv(p+"StW"), standD:numv(p+"StD"), standH:numv(p+"StH"),
+            coverW:numv(p+"CvW"), coverD:numv(p+"CvD"), coverH:numv(p+"CvH"),
+            sumpW:numv(p+"FtW"), sumpD:numv(p+"FtD"), sumpH:numv(p+"FtH"),
+            filt:($(p+"Filt")||{}).value||"", mat:($(p+"Mat")||{}).value||"",
+            prevJob:($(p+"Prev")||{}).value||"" };
+  const n=buildName(o);
+  el.textContent=n||"（サイズか案件名を入れてください）";
+}
+
+/* 付属機材チェックリスト（水槽フルセットのときだけ表示） */
+function gearField(p, it, genre){
+  if(genre!==GEAR_G) return "";
+  const on=gearList(it||{});
+  const boxes=GEAR_LIST.map((g,i)=>
+    `<label class="gchk"><input type="checkbox" id="${p}Gear${i}" ${on.indexOf(g)>=0?"checked":""}><span>${g}</span></label>`
+  ).join("");
+  return `<div class="namebox"><div class="sizettl">🧰 付属機材<span class="unit">あるものにチェック</span></div>
+    <div class="gearwrap">${boxes}</div></div>`;
+}
+function readGear(p){
+  const out=[];
+  GEAR_LIST.forEach((g,i)=>{ const e=$(p+"Gear"+i); if(e&&e.checked) out.push(g); });
+  return out;
+}
+/* ジャンルを切り替えてもチェック内容が消えないよう控えておく箱 */
+const gearMemo={};
+/* ジャンルを変えたときにチェックリストを出し入れする */
+function onGenreChange(p){
+  const host=$(p+"GearHost"); if(!host) return;
+  if($(p+"Gear0")) gearMemo[p]=readGear(p);      /* 消す前に今の状態を保存 */
+  const sel=$(p==="f"?"fGenre":"eG");
+  host.innerHTML=gearField(p, {gear:(gearMemo[p]||[]).join(",")}, sel?sel.value:"");
 }
 function photoField(){return `<div class="field"><label>写真（複数選択可・最大10枚）</label>
     <div class="dropzone" id="drop" onclick="document.getElementById('pick').click()">📷 タップして写真を撮影／選択（複数可）</div>
     <input type="file" id="pick" accept="image/*" multiple style="display:none" onchange="prev(this)">
     <div class="previewgrid" id="preview"></div></div>`;}
 function addForm(t){
-  curPhotos=[];
+  curPhotos=[]; gearMemo.f=[];
   const gs=t==="水槽"?TANK_G:GOODS_G;
   const gopt=gs.map(g=>`<option>${g}</option>`).join("");
   $("aTitle").textContent=(t==="水槽"?"中古水槽を追加":"中古商品を追加");
   let fields;
   if(t==="水槽"){
     fields=`
-    <div class="field"><label>ジャンル</label><select id="fGenre">${gopt}</select></div>
-    <div class="field"><label>品名・呼称</label><input id="fName" placeholder="例: 90cm規格 淡水フルセット"></div>
+    <div class="field"><label>ジャンル</label><select id="fGenre" onchange="onGenreChange('f')">${gopt}</select></div>
+    <div class="rulenote">フルセット以外は<b>バラで登録</b>してください。<br>
+      （既製品の台にガラス水槽を置いただけのものは、水槽と台をそれぞれ登録）</div>
     ${sizeBlocks("f")}
+    ${nameFields("f")}
+    <div id="fGearHost">${gearField("f",null,gs[0])}</div>
     <div class="row2"><div class="field"><label>規格</label><select id="fStd"><option>60cm</option><option>90cm</option><option>120cm</option><option>150cm</option><option selected>その他</option></select></div>
       <div class="field"><label>状態ランク</label><select id="fRank"><option>A</option><option>B</option><option>C</option></select></div></div>
-    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="fPrice" type="number"></div><div class="field"><label>保管場所</label><input id="fLoc" placeholder="A-1"></div></div>
+    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="fPrice" type="text" inputmode="numeric" autocomplete="off" oninput="numClean(this)"></div><div class="field"><label>保管場所</label><input id="fLoc" placeholder="A-1"></div></div>
     <div class="field"><label>状態メモ</label><textarea id="fNote" rows="2" placeholder="キズ・清掃要否など"></textarea></div>`;
   }else{
     fields=`
@@ -534,12 +720,13 @@ function addForm(t){
     <div class="field"><label>破損している箇所（あれば）</label><textarea id="fDmg" rows="2" placeholder="例: 電源コードの被覆に傷／フタのツメが1本欠け"></textarea></div>
     <div class="field"><label>汚れ・使用感（あれば）</label><textarea id="fDirt" rows="2" placeholder="例: 本体に水垢／全体的にヤケあり"></textarea></div>
     <div class="field"><label>備考（自由記入）</label><textarea id="fRemark" rows="2" placeholder="動作確認の有無・付属品など"></textarea></div>
-    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="fPrice" type="number"></div><div class="field"><label>保管場所</label><input id="fLoc" placeholder="D-1"></div></div>`;
+    <div class="row2"><div class="field"><label>想定価格（円）</label><input id="fPrice" type="text" inputmode="numeric" autocomplete="off" oninput="numClean(this)"></div><div class="field"><label>保管場所</label><input id="fLoc" placeholder="D-1"></div></div>`;
   }
   $("aBody").innerHTML=`
     <button class="backbtn" onclick="renderChooser()">← 種類の選択に戻る</button>
     ${photoField()}${fields}
     <button class="submit" onclick="addItem('${t}')">この内容で登録する</button>`;
+  if(t==="水槽") updName("f");
 }
 function prev(inp){
   const files=[...inp.files]; if(!files.length)return;
@@ -556,17 +743,25 @@ function renderPreviews(){
 function rmPreview(i){ curPhotos.splice(i,1); renderPreviews(); }
 function nextMgLocal(){let mx=0; DATA.forEach(it=>{const n=parseInt((String(it.mg).match(/\d+/)||[0])[0]); if(n>mx)mx=n;}); return "AQ-"+String(mx+1).padStart(3,"0");}
 async function addItem(t){
-  if(!$("fName").value.trim()){toast("品名を入力してください");return;}
-  const base={mg:"",t:t,g:$("fGenre").value,name:$("fName").value.trim(),rank:$("fRank").value,
-    status:"未提案",price:+$("fPrice").value||0,loc:$("fLoc").value.trim()||"—"};
+  const base={mg:"",t:t,g:$("fGenre").value,rank:$("fRank").value,createdAt:today(),
+    status:"未提案",price:numv("fPrice"),loc:$("fLoc").value.trim()||"—"};
   let item;
-  if(t==="水槽") item=Object.assign(base,{
-    w:+$("fW").value||0,d:+$("fD").value||0,h:+$("fH").value||0,
-    standW:+$("fStW").value||0,standD:+$("fStD").value||0,standH:+$("fStH").value||0,
-    coverW:+$("fCvW").value||0,coverD:+$("fCvD").value||0,coverH:+$("fCvH").value||0,
-    sumpW:+$("fFtW").value||0,sumpD:+$("fFtD").value||0,sumpH:+$("fFtH").value||0,
-    std:$("fStd").value,note:$("fNote").value.trim()});
-  else item=Object.assign(base,{damage:$("fDmg").value.trim(),dirt:$("fDirt").value.trim(),remark:$("fRemark").value.trim()});
+  if(t==="水槽"){
+    item=Object.assign(base,{
+      w:numv("fW"),d:numv("fD"),h:numv("fH"), visH:numv("fVisH"),
+      standW:numv("fStW"),standD:numv("fStD"),standH:numv("fStH"),
+      coverW:numv("fCvW"),coverD:numv("fCvD"),coverH:numv("fCvH"),
+      sumpW:numv("fFtW"),sumpD:numv("fFtD"),sumpH:numv("fFtH"),
+      filt:$("fFilt").value, mat:$("fMat").value, prevJob:$("fPrev").value.trim(),
+      gear:readGear("f").join(","),
+      std:$("fStd").value,note:$("fNote").value.trim()});
+    item.name=buildName(item);
+    if(!item.name){ toast("サイズか前の案件名を入力してください"); return; }
+  }else{
+    if(!$("fName").value.trim()){toast("商品名を入力してください");return;}
+    item=Object.assign(base,{name:$("fName").value.trim(),
+      damage:$("fDmg").value.trim(),dirt:$("fDirt").value.trim(),remark:$("fRemark").value.trim()});
+  }
   item.photos=[]; if(curPhotos.length) item.photoDataUrls=curPhotos.slice();
   closeS("aSheet");
   if(!API){ item.mg=nextMgLocal(); item.photos=curPhotos.slice(); delete item.photoDataUrls; DATA.unshift(item); openG[item.g]=true; render(); toast(item.mg+" を登録（デモ）"); return; }
@@ -578,7 +773,7 @@ async function addItem(t){
   }catch(e){ toast("通信エラー"); }
 }
 
-function fmt(s){if(!s)return"—"; const p=String(s).split("-"); return p.length===3?`${+p[1]}/${+p[2]}`:s;}
+function fmt(s){ return ymd(s)||"—"; }
 function showS(id){$(id).classList.add("show"); document.body.style.overflow="hidden";}
 function closeS(id){$(id).classList.remove("show"); document.body.style.overflow="";}
 let tT; function toast(m){const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(tT); tT=setTimeout(()=>t.classList.remove("show"),2600);}
