@@ -629,7 +629,7 @@ function sizeBlocks(p, vals){
         <div class="dimgrid onecol">${numInput(p+"VisH","見えている高さ",v.visH)}</div>
         <div class="boxhint">水槽のうち、外から<b>見えている高さ</b>。</div></div>`
     + sizeBlock("水槽台サイズ","🪵",[p+"StW",p+"StD",p+"StH"],[v.standW,v.standD,v.standH],
-      "高さは<b>外から見える高さ（扉の高さ）</b>を入力。")
+      "高さは<b>床から天板までの全高</b>を入力。")
     + sizeBlock("上部カバーサイズ","🔲",[p+"CvW",p+"CvD",p+"CvH"],[v.coverW,v.coverD,v.coverH])
     + sizeBlock("濾過槽サイズ","💧",[p+"FtW",p+"FtD",p+"FtH"],[v.sumpW,v.sumpD,v.sumpH])
     + `<div class="sizehint">※ 該当しない・採寸していない箇所は空欄のままで構いません。</div>`;
